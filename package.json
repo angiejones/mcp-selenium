@@ -1,6 +1,6 @@
 {
   "name": "@angiejones/mcp-selenium",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "Model Context Protocol (MCP) server implementation for Selenium WebDriver",
   "main": "src/lib/server.js",
   "bin": {
