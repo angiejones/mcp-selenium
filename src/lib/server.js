@@ -409,6 +409,35 @@ server.tool(
 );
 
 server.tool(
+    "get_page_source",
+    "retrieves page source in html",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            const page_source = await driver.getPageSource();
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Page source: ${page_source}`
+                    }
+                ]
+            }
+        } catch (e) {
+            return {
+                content: [
+                    {
+                      type: "text",
+                      text: `Error retrieving page source: ${e.message}`
+                    }
+                  ]
+            }
+        }
+    }
+);
+
+server.tool(
     "close_session",
     "closes the current browser session",
     {},
