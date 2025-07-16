@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/angiejones-mcp-selenium-badge.png)](https://mseep.ai/app/angiejones-mcp-selenium)
+
 # MCP Selenium Server
 
 <a href="https://glama.ai/mcp/servers/s2em7b2kwf">
