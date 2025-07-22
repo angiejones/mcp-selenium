@@ -174,6 +174,7 @@ server.tool(
 );
 
 // Frame/iframe switching tool
+//Contributes by Vishal Bose
 server.tool(
     "switch_to_frame",
     "switches Selenium's context to a frame or iframe by locator, index, or to default content",
