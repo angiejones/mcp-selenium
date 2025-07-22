@@ -173,6 +173,39 @@ server.tool(
     }
 );
 
+// Frame/iframe switching tool
+server.tool(
+    "switch_to_frame",
+    "switches Selenium's context to a frame or iframe by locator, index, or to default content",
+    {
+        by: z.enum(["id", "css", "xpath", "name", "tag", "class"]).optional().describe("Locator strategy to find frame element (optional if using index or defaultContent)"),
+        value: z.string().optional().describe("Value for the locator strategy (optional if using index or defaultContent)"),
+        index: z.number().int().optional().describe("Index of the frame to switch to (0-based, optional)"),
+        defaultContent: z.boolean().optional().describe("Set true to switch back to the main document context")
+    },
+    async ({ by, value, index, defaultContent }) => {
+        try {
+            const driver = getDriver();
+            if (defaultContent) {
+                await driver.switchTo().defaultContent();
+                return { content: [{ type: 'text', text: 'Switched to default content (main document)' }] };
+            } else if (typeof index === 'number') {
+                await driver.switchTo().frame(index);
+                return { content: [{ type: 'text', text: `Switched to frame at index ${index}` }] };
+            } else if (by && value) {
+                const locator = getLocator(by, value);
+                const frameElem = await driver.findElement(locator);
+                await driver.switchTo().frame(frameElem);
+                return { content: [{ type: 'text', text: `Switched to frame by locator (${by}, ${value})` }] };
+            } else {
+                return { content: [{ type: 'text', text: 'No valid frame selector provided' }] };
+            }
+        } catch (e) {
+            return { content: [{ type: 'text', text: `Error switching frame: ${e.message}` }] };
+        }
+    }
+);
+
 server.tool(
     "click_element",
     "clicks an element",
