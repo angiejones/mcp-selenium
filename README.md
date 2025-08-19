@@ -31,7 +31,7 @@ A Model Context Protocol (MCP) server implementation for Selenium WebDriver, ena
 
 - Chrome
 - Firefox
-- MS Edge
+- MS Edge (with Internet Explorer mode support)
 
 ## Use with Goose
 
@@ -121,7 +121,7 @@ Launches a browser session.
 **Parameters:**
 - `browser` (required): Browser to launch
   - Type: string
-  - Enum: ["chrome", "firefox"]
+  - Enum: ["chrome", "firefox", "edge"]
 - `options`: Browser configuration options
   - Type: object
   - Properties:
@@ -129,8 +129,12 @@ Launches a browser session.
       - Type: boolean
     - `arguments`: Additional browser arguments
       - Type: array of strings
+    - `ieMode`: Enable Internet Explorer mode for Edge (Edge only)
+      - Type: boolean
 
-**Example:**
+**Examples:**
+
+Chrome browser:
 ```json
 {
   "tool": "start_browser",
@@ -139,6 +143,20 @@ Launches a browser session.
     "options": {
       "headless": true,
       "arguments": ["--no-sandbox"]
+    }
+  }
+}
+```
+
+Edge with Internet Explorer mode (most important feature):
+```json
+{
+  "tool": "start_browser",
+  "parameters": {
+    "browser": "edge",
+    "options": {
+      "ieMode": true,
+      "arguments": ["--disable-web-security"]
     }
   }
 }

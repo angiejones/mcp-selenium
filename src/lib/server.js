@@ -8,6 +8,7 @@ const { Builder, By, Key, until, Actions } = pkg;
 import { Options as ChromeOptions } from 'selenium-webdriver/chrome.js';
 import { Options as FirefoxOptions } from 'selenium-webdriver/firefox.js';
 import { Options as EdgeOptions } from 'selenium-webdriver/edge.js';
+import { Options as IEOptions } from 'selenium-webdriver/ie.js';
 
 
 // Create an MCP server
@@ -46,7 +47,8 @@ const getLocator = (by, value) => {
 // Common schemas
 const browserOptionsSchema = z.object({
     headless: z.boolean().optional().describe("Run browser in headless mode"),
-    arguments: z.array(z.string()).optional().describe("Additional browser arguments")
+    arguments: z.array(z.string()).optional().describe("Additional browser arguments"),
+    ieMode: z.boolean().optional().describe("Enable Internet Explorer mode for Edge (Edge only)")
 }).optional();
 
 const locatorSchema = {
@@ -83,17 +85,37 @@ server.tool(
                     break;
                 }
                 case 'edge': {
-                    const edgeOptions = new EdgeOptions();
-                    if (options.headless) {
-                        edgeOptions.addArguments('--headless=new');
+                    if (options.ieMode) {
+                        // For IE mode, use IE driver with Edge Chromium attachment
+                        const ieOptions = new IEOptions();
+                        ieOptions.setEdgeChromium(true);
+                        // Fix Protected Mode settings error
+                        ieOptions.introduceFlakinessByIgnoringProtectedModeSettings(true);
+                        ieOptions.ignoreZoomSetting(true);
+                        if (process.env.EDGE_PATH) {
+                            ieOptions.setEdgePath(process.env.EDGE_PATH);
+                        }
+                        if (options.arguments) {
+                            options.arguments.forEach(arg => ieOptions.addBrowserCommandSwitches(arg));
+                        }
+                        driver = await builder
+                            .forBrowser('internet explorer')
+                            .setIeOptions(ieOptions)
+                            .build();
+                    } else {
+                        // Regular Edge browser
+                        const edgeOptions = new EdgeOptions();
+                        if (options.headless) {
+                            edgeOptions.addArguments('--headless=new');
+                        }
+                        if (options.arguments) {
+                            options.arguments.forEach(arg => edgeOptions.addArguments(arg));
+                        }
+                        driver = await builder
+                            .forBrowser('edge')
+                            .setEdgeOptions(edgeOptions)
+                            .build();
                     }
-                    if (options.arguments) {
-                        options.arguments.forEach(arg => edgeOptions.addArguments(arg));
-                    }
-                    driver = await builder
-                        .forBrowser('edge')
-                        .setEdgeOptions(edgeOptions)
-                        .build();
                     break;
                 }
                 case 'firefox': {
