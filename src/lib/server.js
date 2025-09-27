@@ -445,18 +445,28 @@ server.tool(
 );
 
 // Resources
-server.resource(
-    "browser-status",
-    new ResourceTemplate("browser-status://current"),
-    async (uri) => ({
-        contents: [{
-            uri: uri.href,
-            text: state.currentSession
-                ? `Active browser session: ${state.currentSession}`
-                : "No active browser session"
-        }]
-    })
-);
+server.resource("browser-status", {
+  uriTemplate: "browser-status://{which}",
+  list: async () => [
+    {
+      uri: "browser-status://current",
+      name: "Browser Session Status",
+      description: "Returns the current session ID or status",
+      mimeType: "text/plain"
+    }
+  ],
+  get: async (uri) => {
+    return {
+      contents: [{
+        uri: uri.href,
+        mimeType: "text/plain",
+        text: state.currentSession
+          ? `Active session: ${state.currentSession}`
+          : "No active browser session"
+      }]
+    };
+  }
+});
 
 // Cleanup handler
 async function cleanup() {
