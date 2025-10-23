@@ -63,13 +63,65 @@ goose://extension?cmd=npx&arg=-y&arg=%40angiejones%2Fmcp-selenium&id=selenium-mc
 
 ---
 
+## Prerequisites
+
+### Browser Drivers
+
+This MCP server requires browser drivers to be installed and available in your PATH:
+
+#### ChromeDriver (for Chrome/Chromium)
+
+**Install globally via npm:**
+```bash
+npm install -g chromedriver
+```
+
+**Verify installation:**
+```bash
+chromedriver --version
+```
+
+**Alternative installation methods:**
+- macOS: `brew install chromedriver`
+- Ubuntu/Debian: `sudo apt-get install chromium-chromedriver`
+- Manual: Download from [ChromeDriver Downloads](https://chromedriver.chromium.org/downloads)
+
+#### GeckoDriver (for Firefox)
+
+**Install via npm:**
+```bash
+npm install -g geckodriver
+```
+
+**Alternative installation methods:**
+- macOS: `brew install geckodriver`
+- Ubuntu/Debian: `sudo apt-get install firefox-geckodriver`
+- Manual: Download from [GeckoDriver Releases](https://github.com/mozilla/geckodriver/releases)
+
+#### EdgeDriver (for Microsoft Edge)
+
+**Install via npm:**
+```bash
+npm install -g edgedriver
+```
+
+**Alternative:** Download from [Microsoft Edge WebDriver](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/)
+
+### Browser Installation
+
+Ensure the corresponding browsers are installed on your system:
+- Chrome/Chromium: [Download Chrome](https://www.google.com/chrome/)
+- Firefox: [Download Firefox](https://www.mozilla.org/firefox/)
+- Microsoft Edge: [Download Edge](https://www.microsoft.com/edge)
+
 ## Development
 
 To work on this project:
 
 1. Clone the repository
 2. Install dependencies: `npm install`
-3. Run the server: `npm start`
+3. **Install browser drivers** (see Prerequisites above)
+4. Run the server: `npm start`
 
 ### Installation
 
