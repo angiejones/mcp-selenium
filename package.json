@@ -1,36 +1,36 @@
 {
-  "name": "@angiejones/mcp-selenium",
-  "version": "0.1.21",
-  "description": "Selenium WebDriver MCP Server",
-  "type": "module",
-  "main": "src/lib/server.js",
-  "bin": {
-    "mcp-selenium": "./src/lib/server.js"
-  },
-  "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "inspector": "npx @modelcontextprotocol/inspector src/lib/server.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.7.0",
-    "selenium-webdriver": "^4.18.1"
-  },
-  "devDependencies": {
-    "jest": "^29.7.0"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "coveragePathIgnorePatterns": [
-      "/node_modules/"
-    ],
-    "testMatch": [
-      "**/__tests__/**/*.js",
-      "**/?(*.)+(spec|test).js"
-    ]
-  }
+	"name": "@angiejones/mcp-selenium",
+	"version": "0.1.21",
+	"description": "Selenium WebDriver MCP Server",
+	"type": "module",
+	"main": "src/lib/server.js",
+	"bin": {
+		"mcp-selenium": "./src/lib/server.js"
+	},
+	"scripts": {
+		"test": "jest",
+		"test:watch": "jest --watch",
+		"test:coverage": "jest --coverage",
+		"inspector": "npx @modelcontextprotocol/inspector src/lib/server.js"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.7.0",
+		"selenium-webdriver": "^4.18.1"
+	},
+	"devDependencies": {
+		"jest": "^29.7.0"
+	},
+	"jest": {
+		"testEnvironment": "node",
+		"coveragePathIgnorePatterns": [
+			"/node_modules/"
+		],
+		"testMatch": [
+			"**/__tests__/**/*.js",
+			"**/?(*.)+(spec|test).js"
+		]
+	}
 }
