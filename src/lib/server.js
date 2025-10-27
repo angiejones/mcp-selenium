@@ -448,10 +448,13 @@ server.tool(
 server.tool(
     "accept_alert",
     "accepts a browser alert, confirmation, or prompt dialog",
-    {},
-    async () => {
+    {
+        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
+    },
+    async ({ timeout = 10000 }) => {
         try {
             const driver = getDriver();
+            await driver.wait(until.alertIsPresent(), timeout);
             const alert = await driver.switchTo().alert();
             await alert.accept();
             return {
@@ -468,10 +471,13 @@ server.tool(
 server.tool(
     "dismiss_alert",
     "dismisses/cancels a browser alert, confirmation, or prompt dialog",
-    {},
-    async () => {
+    {
+        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
+    },
+    async ({ timeout = 10000 }) => {
         try {
             const driver = getDriver();
+            await driver.wait(until.alertIsPresent(), timeout);
             const alert = await driver.switchTo().alert();
             await alert.dismiss();
             return {
@@ -488,10 +494,13 @@ server.tool(
 server.tool(
     "get_alert_text",
     "gets the text content from a browser alert, confirmation, or prompt dialog",
-    {},
-    async () => {
+    {
+        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
+    },
+    async ({ timeout = 10000 }) => {
         try {
             const driver = getDriver();
+            await driver.wait(until.alertIsPresent(), timeout);
             const alert = await driver.switchTo().alert();
             const text = await alert.getText();
             return {
@@ -509,11 +518,13 @@ server.tool(
     "send_alert_text",
     "sends text to a browser prompt dialog",
     {
-        text: z.string().describe("Text to send to the prompt dialog")
+        text: z.string().describe("Text to send to the prompt dialog"),
+        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
     },
-    async ({ text }) => {
+    async ({ text, timeout = 10000 }) => {
         try {
             const driver = getDriver();
+            await driver.wait(until.alertIsPresent(), timeout);
             const alert = await driver.switchTo().alert();
             await alert.sendKeys(text);
             await alert.accept();
