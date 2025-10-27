@@ -444,6 +444,90 @@ server.tool(
     }
 );
 
+// Alert/Modal Handling Tools
+server.tool(
+    "accept_alert",
+    "accepts a browser alert, confirmation, or prompt dialog",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            const alert = await driver.switchTo().alert();
+            await alert.accept();
+            return {
+                content: [{ type: 'text', text: 'Alert accepted' }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error accepting alert: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "dismiss_alert",
+    "dismisses/cancels a browser alert, confirmation, or prompt dialog",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            const alert = await driver.switchTo().alert();
+            await alert.dismiss();
+            return {
+                content: [{ type: 'text', text: 'Alert dismissed' }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error dismissing alert: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "get_alert_text",
+    "gets the text content from a browser alert, confirmation, or prompt dialog",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            const alert = await driver.switchTo().alert();
+            const text = await alert.getText();
+            return {
+                content: [{ type: 'text', text }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error getting alert text: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "send_alert_text",
+    "sends text to a browser prompt dialog",
+    {
+        text: z.string().describe("Text to send to the prompt dialog")
+    },
+    async ({ text }) => {
+        try {
+            const driver = getDriver();
+            const alert = await driver.switchTo().alert();
+            await alert.sendKeys(text);
+            await alert.accept();
+            return {
+                content: [{ type: 'text', text: `Text "${text}" sent to alert and accepted` }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error sending text to alert: ${e.message}` }]
+            };
+        }
+    }
+);
+
 // Resources
 server.resource(
     "browser-status",
