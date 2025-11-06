@@ -19,6 +19,7 @@ A Model Context Protocol (MCP) server implementation for Selenium WebDriver, ena
 - Handle keyboard input
 - Take screenshots
 - Upload files
+- Window Management
 - Support for headless mode
 
 ## Supported Browsers
@@ -433,6 +434,78 @@ None required
 }
 ```
 
+### get_window_handles
+Gets all window handles.
+
+**Parameters:**
+None required
+
+**Example:**
+```json
+{
+  "tool": "get_window_handles",
+  "parameters": {}
+}
+```
+
+### get_current_window_handle
+Gets the current window handle.
+
+**Parameters:**
+None required
+
+**Example:**
+```json
+{
+  "tool": "get_current_window_handle",
+  "parameters": {}
+}
+```
+
+### switch_to_window
+Switches to a window by its handle.
+
+**Parameters:**
+- `handle` (required): The handle of the window to switch to
+  - Type: string
+
+**Example:**
+```json
+{
+  "tool": "switch_to_window",
+  "parameters": {
+    "handle": "CDwindow-ABC"
+  }
+}
+```
+
+### switch_to_latest_window
+Switches to the most recently opened window.
+
+**Parameters:**
+None required
+
+**Example:**
+```json
+{
+  "tool": "switch_to_latest_window",
+  "parameters": {}
+}
+```
+
+### close_current_window
+Closes the currently active window.
+
+**Parameters:**
+None required
+
+**Example:**
+```json
+{
+  "tool": "close_current_window",
+  "parameters": {}
+}
+```
 
 ## License
 

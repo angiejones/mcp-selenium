@@ -422,6 +422,112 @@ server.tool(
     }
 );
 
+// Window Management Tools
+server.tool(
+    "get_window_handles",
+    "gets all window handles",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            const handles = await driver.getAllWindowHandles();
+            return {
+                content: [{ type: 'text', text: `Window handles: ${handles.join(', ')}` }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error getting window handles: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "get_current_window_handle",
+    "gets the current window handle",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            const handle = await driver.getWindowHandle();
+            return {
+                content: [{ type: 'text', text: `Current window handle: ${handle}` }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error getting current window handle: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "switch_to_window",
+    "switches to a window by its handle",
+    {
+        handle: z.string().describe("The handle of the window to switch to")
+    },
+    async ({ handle }) => {
+        try {
+            const driver = getDriver();
+            await driver.switchTo().window(handle);
+            return {
+                content: [{ type: 'text', text: `Switched to window: ${handle}` }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error switching to window: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "switch_to_latest_window",
+    "switches to the most recently opened window",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            const handles = await driver.getAllWindowHandles();
+            if (handles.length > 0) {
+                const latestHandle = handles[handles.length - 1];
+                await driver.switchTo().window(latestHandle);
+                return {
+                    content: [{ type: 'text', text: `Switched to latest window: ${latestHandle}` }]
+                };
+            } else {
+                return {
+                    content: [{ type: 'text', text: 'No windows available to switch to' }]
+                };
+            }
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error switching to latest window: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "close_current_window",
+    "closes the currently active window",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            await driver.close();
+            return {
+                content: [{ type: 'text', text: 'Current window closed' }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error closing current window: ${e.message}` }]
+            };
+        }
+    }
+);
+
 server.tool(
     "close_session",
     "closes the current browser session",
