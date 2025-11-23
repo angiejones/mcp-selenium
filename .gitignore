@@ -51,3 +51,8 @@ mcp-selenium-lambda.zip
 .aws-sam/
 .serverless/
 layers/
+
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov

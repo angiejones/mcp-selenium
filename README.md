@@ -122,6 +122,32 @@ To work on this project:
 2. Install dependencies: `npm install`
 3. Run the server: `npm start`
 
+### Testing
+
+The project includes comprehensive unit tests for the HTTP Lambda implementation:
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run Lambda integration test
+npm run test:lambda
+```
+
+**Test Coverage:**
+- 51 unit tests across 24 test suites
+- ~59% statement coverage
+- ~88% branch coverage
+- Tests for HTTP handler, MCP protocol, tools, and resources
+
+See [tests/README.md](tests/README.md) for detailed testing documentation.
+
 ### Installation
 
 #### Installing via Smithery
