@@ -1,0 +1,60 @@
+# Multi-stage build for AWS Lambda
+FROM public.ecr.aws/lambda/nodejs:18 AS build
+
+# Install Chrome dependencies
+RUN yum install -y \
+    wget \
+    unzip \
+    gtk3 \
+    nss \
+    atk \
+    at-spi2-atk \
+    cups-libs \
+    libdrm \
+    libxkbcommon \
+    libXcomposite \
+    libXdamage \
+    libXrandr \
+    mesa-libgbm \
+    alsa-lib
+
+# Install Chrome
+RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && \
+    yum install -y google-chrome-stable_current_x86_64.rpm && \
+    rm google-chrome-stable_current_x86_64.rpm
+
+# Install ChromeDriver
+RUN CHROMEDRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE) && \
+    wget -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" && \
+    unzip chromedriver_linux64.zip && \
+    mv chromedriver /usr/local/bin/ && \
+    chmod +x /usr/local/bin/chromedriver && \
+    rm chromedriver_linux64.zip
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --omit=dev
+
+# Final stage
+FROM public.ecr.aws/lambda/nodejs:18
+
+# Copy Chrome and dependencies from build stage
+COPY --from=build /usr/bin/google-chrome-stable /usr/bin/google-chrome-stable
+COPY --from=build /usr/local/bin/chromedriver /usr/local/bin/chromedriver
+COPY --from=build /usr/lib64 /usr/lib64
+
+# Set environment variables for Chrome
+ENV CHROME_BIN=/usr/bin/google-chrome-stable
+ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
+
+# Copy application code
+COPY src/ ${LAMBDA_TASK_ROOT}/src/
+COPY package*.json ${LAMBDA_TASK_ROOT}/
+
+# Copy node_modules from build stage
+COPY --from=build /var/task/node_modules ${LAMBDA_TASK_ROOT}/node_modules
+
+# Set the handler
+CMD [ "src/lib/lambda.handler" ]

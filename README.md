@@ -44,6 +44,8 @@ goose://extension?cmd=npx&arg=-y&arg=%40angiejones%2Fmcp-selenium&id=selenium-mc
 * Command: `npx -y @angiejones/mcp-selenium`
 
 ## Use with other MCP clients (e.g. Claude Desktop, etc)
+
+### Stdio Mode (Default)
 ```json
 {
   "mcpServers": {
@@ -53,6 +55,61 @@ goose://extension?cmd=npx&arg=-y&arg=%40angiejones%2Fmcp-selenium&id=selenium-mc
     }
   }
 }
+```
+
+### HTTP Lambda Mode
+
+MCP Selenium can also run as an HTTP Lambda function for cloud-based browser automation. This is useful for:
+- Serverless deployments
+- Remote browser automation
+- Multi-user scenarios
+- Integration with web applications
+
+For detailed deployment instructions, see [LAMBDA_DEPLOYMENT.md](LAMBDA_DEPLOYMENT.md).
+
+**Quick Setup:**
+
+```bash
+# Local testing
+npm run lambda:test
+
+# Deploy with AWS SAM
+sam build && sam deploy --guided
+
+# Deploy with Serverless Framework
+serverless deploy
+```
+
+**HTTP Client Configuration:**
+
+```json
+{
+  "mcpServers": {
+    "selenium": {
+      "url": "https://<your-api-gateway-url>/message",
+      "transport": "http"
+    }
+  }
+}
+```
+
+**Direct HTTP Usage:**
+
+```bash
+curl -X POST https://<your-api-gateway-url>/message \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "start_browser",
+      "arguments": {
+        "browser": "chrome",
+        "options": {"headless": true}
+      }
+    }
+  }'
 ```
 
 ---

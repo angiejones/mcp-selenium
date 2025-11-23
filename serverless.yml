@@ -1,0 +1,50 @@
+service: mcp-selenium-lambda
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  memorySize: 1024
+  timeout: 300
+  environment:
+    NODE_ENV: production
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource:
+            - 'arn:aws:logs:*:*:*'
+
+functions:
+  mcpSelenium:
+    handler: src/lib/lambda.handler
+    events:
+      - httpApi:
+          path: /
+          method: POST
+      - httpApi:
+          path: /message
+          method: POST
+      - httpApi:
+          path: /sse
+          method: GET
+      - httpApi:
+          path: /{proxy+}
+          method: OPTIONS
+    layers:
+      # Chrome layer for Lambda (you'll need to add your own or use a public one)
+      # - arn:aws:lambda:us-east-1:764866452798:layer:chrome-aws-lambda:31
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 3000

@@ -8,13 +8,16 @@
     "mcp-selenium": "./src/lib/server.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lambda:test": "LOCAL_TEST=true PORT=3000 node src/lib/lambda.js",
+    "lambda:build": "zip -r mcp-selenium-lambda.zip src/ node_modules/ package.json"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.7.0",
-    "selenium-webdriver": "^4.18.1"
+    "selenium-webdriver": "^4.18.1",
+    "zod": "^3.22.4"
   }
 }

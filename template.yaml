@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: MCP Selenium HTTP Lambda Function
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 1024
+    Runtime: nodejs18.x
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        NODE_ENV: production
+
+Resources:
+  McpSeleniumFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: mcp-selenium
+      CodeUri: ./
+      Handler: src/lib/lambda.handler
+      Description: MCP Selenium browser automation over HTTP
+      Events:
+        RootPost:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: POST
+        MessagePost:
+          Type: HttpApi
+          Properties:
+            Path: /message
+            Method: POST
+        SseGet:
+          Type: HttpApi
+          Properties:
+            Path: /sse
+            Method: GET
+        OptionsProxy:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: OPTIONS
+      Policies:
+        - CloudWatchLogsFullAccess
+      # Layers:
+      #   - !Ref ChromeLayer  # Uncomment and configure Chrome layer for Lambda
+
+  # Uncomment to add Chrome layer
+  # ChromeLayer:
+  #   Type: AWS::Serverless::LayerVersion
+  #   Properties:
+  #     LayerName: chrome-layer
+  #     Description: Chrome browser for Lambda
+  #     ContentUri: ./layers/chrome/
+  #     CompatibleRuntimes:
+  #       - nodejs18.x
+
+Outputs:
+  McpSeleniumApi:
+    Description: "HTTP API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"
+  McpSeleniumFunction:
+    Description: "MCP Selenium Lambda Function ARN"
+    Value: !GetAtt McpSeleniumFunction.Arn
+  McpSeleniumFunctionIamRole:
+    Description: "Implicit IAM Role created for MCP Selenium function"
+    Value: !GetAtt McpSeleniumFunctionRole.Arn
