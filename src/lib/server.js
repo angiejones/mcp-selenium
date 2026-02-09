@@ -50,7 +50,8 @@ const getLocator = (by, value) => {
 // Common schemas
 const browserOptionsSchema = z.object({
     headless: z.boolean().optional().describe("Run browser in headless mode"),
-    arguments: z.array(z.string()).optional().describe("Additional browser arguments")
+    arguments: z.array(z.string()).optional().describe("Additional browser arguments"),
+    windowSize: z.string().optional().describe("Browser window size in format 'WIDTHxHEIGHT' (default: '1280x800')")
 }).optional();
 
 const locatorSchema = {
@@ -71,9 +72,18 @@ server.tool(
         try {
             let builder = new Builder();
             let driver;
+
+            // Parse window size early (default to 1280x800)
+            const windowSize = options.windowSize || '1280x800';
+            const [width, height] = windowSize.split('x').map(Number);
+
             switch (browser) {
                 case 'chrome': {
                     const chromeOptions = new ChromeOptions();
+                    // Always set window size via arguments for consistency
+                    if (!isNaN(width) && !isNaN(height)) {
+                        chromeOptions.addArguments(`--window-size=${width},${height}`);
+                    }
                     if (options.headless) {
                         chromeOptions.addArguments('--headless=new');
                     }
@@ -88,6 +98,10 @@ server.tool(
                 }
                 case 'edge': {
                     const edgeOptions = new EdgeOptions();
+                    // Always set window size via arguments for consistency
+                    if (!isNaN(width) && !isNaN(height)) {
+                        edgeOptions.addArguments(`--window-size=${width},${height}`);
+                    }
                     if (options.headless) {
                         edgeOptions.addArguments('--headless=new');
                     }
@@ -102,6 +116,11 @@ server.tool(
                 }
                 case 'firefox': {
                     const firefoxOptions = new FirefoxOptions();
+                    // Always set window size via arguments for consistency
+                    if (!isNaN(width) && !isNaN(height)) {
+                        firefoxOptions.addArguments(`--width=${width}`);
+                        firefoxOptions.addArguments(`--height=${height}`);
+                    }
                     if (options.headless) {
                         firefoxOptions.addArguments('--headless');
                     }
@@ -118,6 +137,12 @@ server.tool(
                     throw new Error(`Unsupported browser: ${browser}`);
                 }
             }
+
+            // Also set window size using setRect for extra reliability in non-headless mode
+            if (!options.headless && !isNaN(width) && !isNaN(height)) {
+                await driver.manage().window().setRect({ width, height, x: 0, y: 0 });
+            }
+
             const sessionId = `${browser}_${Date.now()}`;
             state.drivers.set(sessionId, driver);
             state.currentSession = sessionId;
