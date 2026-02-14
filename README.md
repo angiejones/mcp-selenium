@@ -2,7 +2,7 @@
 
 # MCP Selenium Server
 
-A Model Context Protocol (MCP) server implementation for Selenium WebDriver, enabling browser automation through standardized MCP clients.
+A Model Context Protocol (MCP) server implementation for Selenium WebDriver, enabling browser automation and testing through standardized MCP clients.
 
 ## Video Demo (Click to Watch)
 
@@ -20,6 +20,9 @@ A Model Context Protocol (MCP) server implementation for Selenium WebDriver, ena
 - Take screenshots
 - Upload files
 - Support for headless mode
+- Run custom JavaScript on pages
+- Read browser console logs
+  - Get stack traces
 
 ## Supported Browsers
 
