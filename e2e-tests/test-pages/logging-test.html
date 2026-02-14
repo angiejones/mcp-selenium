@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS Status Checker</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #f0f2f5; }
+        .status-card { padding: 30px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 300px; }
+
+        /* Default styling for Inactive status */
+        #js-badge {
+            display: inline-block; padding: 10px 20px; border-radius: 20px;
+            font-weight: bold; background-color: #ff4d4d; color: white; margin-top: 15px;
+        }
+
+        /* Styling for when JS is active */
+        .active-mode { background-color: #2ecc71 !important; }
+
+        .error-note { font-size: 0.8rem; color: #666; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="status-card">
+        <h2>System Status</h2>
+
+        <div id="js-badge">JavaScript: Inactive</div>
+
+        <noscript>
+            <p style="color: red; margin-top: 10px;">(Browser has JS disabled)</p>
+        </noscript>
+
+        <p class="error-note">Check the console (F12) for the stack trace error.</p>
+    </div>
+
+    <script>
+        // Immediately update the UI to show JS is active
+        const badge = document.getElementById('js-badge');
+        badge.innerText = "JavaScript: Active";
+        badge.classList.add('active-mode');
+
+        // Printing to console as requested
+        console.log("✅ JavaScript is active and modifying the DOM.");
+
+        // Causing the stack trace error
+        function startChain() {
+            processData();
+        }
+
+        function processData() {
+            console.log("Processing... (about to fail)");
+            triggerCrash();
+        }
+
+        function triggerCrash() {
+            // Intentionally calling something that doesn't exist
+            forceSystemErrorNow();
+        }
+
+        // Start the failing chain
+        startChain();
+    </script>
+</body>
+</html>
