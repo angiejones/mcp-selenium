@@ -8,8 +8,7 @@ const { Builder, By, Key, until, Actions } = pkg;
 import { Options as ChromeOptions } from 'selenium-webdriver/chrome.js';
 import { Options as FirefoxOptions } from 'selenium-webdriver/firefox.js';
 import { Options as EdgeOptions } from 'selenium-webdriver/edge.js';
-import injectedScripts from '../injected/index.js';
-import { parseSeleniumErrorMessage, deduplicateLogs } from './utils.js';
+import { parseBidiJsError, parseBidiConsoleMessage } from './bidi-utils.js';
 
 
 // Create an MCP server
@@ -22,8 +21,7 @@ const server = new McpServer({
 const state = {
     drivers: new Map(),
     currentSession: null,
-    logCache: new Map(), // Cache logs per session
-    trackedErrorsCache: new Map() // Cache tracked errors per session
+    bidiLogs: new Map(),
 };
 
 // Helper functions
@@ -80,7 +78,8 @@ server.tool(
             switch (browser) {
                 case 'chrome': {
                     const chromeOptions = new ChromeOptions();
-                    // Always set window size via arguments for consistency
+                    // Enable BiDi protocol for real-time log capture
+                    chromeOptions.enableBidi();
                     if (!isNaN(width) && !isNaN(height)) {
                         chromeOptions.addArguments(`--window-size=${width},${height}`);
                     }
@@ -98,7 +97,8 @@ server.tool(
                 }
                 case 'edge': {
                     const edgeOptions = new EdgeOptions();
-                    // Always set window size via arguments for consistency
+                    // Enable BiDi protocol for real-time log capture
+                    edgeOptions.enableBidi();
                     if (!isNaN(width) && !isNaN(height)) {
                         edgeOptions.addArguments(`--window-size=${width},${height}`);
                     }
@@ -116,7 +116,8 @@ server.tool(
                 }
                 case 'firefox': {
                     const firefoxOptions = new FirefoxOptions();
-                    // Always set window size via arguments for consistency
+                    // Enable BiDi protocol for real-time log capture
+                    firefoxOptions.enableBidi();
                     if (!isNaN(width) && !isNaN(height)) {
                         firefoxOptions.addArguments(`--width=${width}`);
                         firefoxOptions.addArguments(`--height=${height}`);
@@ -147,6 +148,19 @@ server.tool(
             state.drivers.set(sessionId, driver);
             state.currentSession = sessionId;
 
+            // Set up BiDi-based log capture for all browsers via WebDriver BiDi protocol.
+            // This captures console messages and JS errors in real-time.
+            const bidiLogs = [];
+            state.bidiLogs.set(sessionId, bidiLogs);
+
+            await driver.script().addJavaScriptErrorHandler((error) => {
+                bidiLogs.push(parseBidiJsError(error));
+            });
+
+            await driver.script().addConsoleMessageHandler((entry) => {
+                bidiLogs.push(parseBidiConsoleMessage(entry));
+            });
+
             return {
                 content: [{ type: 'text', text: `Browser started with session_id: ${sessionId}` }]
             };
@@ -167,33 +181,9 @@ server.tool(
     async ({ url }) => {
         try {
             const driver = getDriver();
-
-            // Try to inject error tracking before navigation using CDP (Chrome/Edge only)
-            let cdpInjected = false;
-            try {
-                // Selenium 4.40.0+ has sendDevToolsCommand
-                if (typeof driver.sendDevToolsCommand === 'function') {
-                    await driver.sendDevToolsCommand('Page.enable', {});
-                    await driver.sendDevToolsCommand('Page.addScriptToEvaluateOnNewDocument', {
-                        source: injectedScripts.errorLogging
-                    });
-                    cdpInjected = true;
-                }
-            } catch (cdpError) {
-                // CDP not available or failed - will fall back to post-navigation injection
-            }
-
             await driver.get(url);
-
-            // Also inject after navigation as fallback
-            await driver.executeScript(injectedScripts.errorLogging);
-
-            const message = cdpInjected
-                ? `Navigated to ${url} (CDP early error tracking enabled)`
-                : `Navigated to ${url} (post-load error tracking enabled)`;
-
             return {
-                content: [{ type: 'text', text: message }]
+                content: [{ type: 'text', text: `Navigated to ${url}` }]
             };
         } catch (e) {
             return {
@@ -483,37 +473,18 @@ server.tool(
     },
     async ({ logType = "browser" }) => {
         try {
-            const driver = getDriver();
-            const logs = await driver.manage().logs().get(logType);
+            const bidiLogs = state.bidiLogs.get(state.currentSession) || [];
 
-            // Cache the logs for this session so get_error_stacktrace can use them
-            state.logCache.set(state.currentSession, logs);
-
-            // Also retrieve tracked errors with stack traces
-            let trackedErrors = [];
-            try {
-                trackedErrors = await driver.executeScript(`
-                    return window.__mcpErrorLog || [];
-                `);
-                // Cache tracked errors too
-                state.trackedErrorsCache.set(state.currentSession, trackedErrors);
-            } catch (e) {
-                // Ignore if script fails (page might not have our tracking injected)
-            }
-
-            if (logs.length === 0 && trackedErrors.length === 0) {
+            if (bidiLogs.length === 0) {
                 return {
                     content: [{ type: 'text', text: 'No console logs or tracked errors found' }]
                 };
             }
 
-            // Merge and deduplicate Selenium logs with tracked errors
-            const deduped = deduplicateLogs(logs, trackedErrors);
-
             let output = '';
-            deduped.forEach((entry, index) => {
+            bidiLogs.forEach((entry, index) => {
                 const isoTimestamp = new Date(entry.timestamp).toISOString();
-                if (entry.source === 'tracked') {
+                if (entry.type === 'error') {
                     output += `[${entry.level}] ${isoTimestamp} (tracked:${entry.type})\n`;
                     output += `${entry.message}\n`;
                     if (entry.hasStack) {
@@ -523,7 +494,7 @@ server.tool(
                     output += `[${entry.level}] ${isoTimestamp}\n`;
                     output += `${entry.message}\n`;
                 }
-                if (index < deduped.length - 1) {
+                if (index < bidiLogs.length - 1) {
                     output += '\n';
                 }
             });
@@ -548,11 +519,9 @@ server.tool(
     },
     async ({ timestamp, maxStackLines = 10 }) => {
         try {
-            // Use cached logs and tracked errors
-            const logs = state.logCache.get(state.currentSession) || [];
-            const trackedErrors = state.trackedErrorsCache.get(state.currentSession) || [];
+            const bidiLogs = state.bidiLogs.get(state.currentSession) || [];
 
-            if (logs.length === 0 && trackedErrors.length === 0) {
+            if (bidiLogs.length === 0) {
                 return {
                     content: [{ type: 'text', text: 'No cached console logs found. Please call get_console_logs first to retrieve logs.' }]
                 };
@@ -571,16 +540,14 @@ server.tool(
                 timestampMs = timestamp;
             }
 
-            // First, check tracked errors (they have full stack traces)
-            const matchingTrackedError = trackedErrors.find(error => error.timestamp === timestampMs);
+            const matchingError = bidiLogs.find(entry => entry.timestamp === timestampMs && entry.type === 'error');
 
-            if (matchingTrackedError) {
-                // Format the detailed error output with full stack trace
-                let output = `Type: ${matchingTrackedError.type}\n`;
-                output += `Message: ${matchingTrackedError.message}\n`;
+            if (matchingError) {
+                let output = `Type: ${matchingError.type}\n`;
+                output += `Message: ${matchingError.message}\n`;
 
-                if (matchingTrackedError.stack) {
-                    const stackLines = matchingTrackedError.stack.split('\n');
+                if (matchingError.stack) {
+                    const stackLines = matchingError.stack.split('\n');
                     const limitedStack = maxStackLines > 0 ? stackLines.slice(0, maxStackLines) : stackLines;
                     const truncated = maxStackLines > 0 && stackLines.length > maxStackLines;
                     output += `\nStack Trace:\n${limitedStack.join('\n')}`;
@@ -596,6 +563,10 @@ server.tool(
                     content: [{ type: 'text', text: output }]
                 };
             }
+
+            return {
+                content: [{ type: 'text', text: `No error found at timestamp ${timestamp}` }]
+            };
         } catch (e) {
             return {
                 content: [{ type: 'text', text: `Error retrieving error stacktrace: ${e.message}` }]
@@ -619,17 +590,12 @@ server.tool(
 
             let result;
             if (isAsync) {
-                // Set the script timeout for async execution
                 await driver.manage().setTimeouts({ script: timeout });
-
-                // Execute the async script and get the result
                 result = await driver.executeAsyncScript(script, ...args);
             } else {
-                // Execute the script synchronously and get the result
                 result = await driver.executeScript(script, ...args);
             }
 
-            // Handle different result types
             let formattedResult;
             if (result === null) {
                 formattedResult = 'null';
@@ -666,8 +632,7 @@ server.tool(
             const driver = getDriver();
             await driver.quit();
             state.drivers.delete(state.currentSession);
-            state.logCache.delete(state.currentSession); // Clean up cached logs
-            state.trackedErrorsCache.delete(state.currentSession); // Clean up tracked errors cache
+            state.bidiLogs.delete(state.currentSession);
             const sessionId = state.currentSession;
             state.currentSession = null;
             return {
