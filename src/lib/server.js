@@ -90,10 +90,25 @@ server.tool(
                     if (options.arguments) {
                         options.arguments.forEach(arg => edgeOptions.addArguments(arg));
                     }
-                    driver = await builder
-                        .forBrowser('edge')
-                        .setEdgeOptions(edgeOptions)
-                        .build();
+
+                    // Try 'edge' first, fallback to 'MicrosoftEdge'
+                    try {
+                        driver = await builder
+                            .forBrowser('edge')
+                            .setEdgeOptions(edgeOptions)
+                            .build();
+                    } catch (edgeError) {
+                        // If 'edge' fails, try 'MicrosoftEdge' (required by some Selenium versions)
+                        if (edgeError.message && edgeError.message.includes('Do not know how to build driver')) {
+                            driver = await builder
+                                .forBrowser('MicrosoftEdge')
+                                .setEdgeOptions(edgeOptions)
+                                .build();
+                        } else {
+                            // Re-throw if it's a different error
+                            throw edgeError;
+                        }
+                    }
                     break;
                 }
                 case 'firefox': {
