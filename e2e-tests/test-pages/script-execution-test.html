@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Script Execution Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            color: white;
+        }
+        .test-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            color: #333;
+        }
+        h1 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        #data-store {
+            display: none;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Script Execution Test Page</h1>
+
+        <div class="test-section">
+            <h3>Test Data</h3>
+            <div id="counter">0</div>
+            <div id="message">Initial message</div>
+            <div id="result-display" class="result">No results yet</div>
+            <button id="increment-btn" onclick="incrementCounter()">Increment Counter</button>
+            <button id="async-btn" onclick="triggerAsync()">Trigger Async</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Hidden Data Store</h3>
+            <div id="data-store" data-secret="hidden-value-12345">
+                This element is hidden but contains testable data
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Dynamic List</h3>
+            <ul id="dynamic-list">
+                <li>Item 1</li>
+                <li>Item 2</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Global counter for testing
+        let globalCounter = 0;
+
+        // Store for async operations
+        window.asyncResults = [];
+
+        function incrementCounter() {
+            globalCounter++;
+            document.getElementById('counter').textContent = globalCounter;
+            console.log(`Counter incremented to: ${globalCounter}`);
+        }
+
+        function triggerAsync() {
+            console.log('Async operation triggered');
+            setTimeout(() => {
+                window.asyncResults.push(`Result at ${Date.now()}`);
+                document.getElementById('result-display').textContent =
+                    `Async completed: ${window.asyncResults.length} results`;
+                console.log('Async operation completed');
+            }, 100);
+        }
+
+        // Helper function for testing arguments
+        window.addNumbers = function(a, b, c = 0) {
+            return a + b + c;
+        };
+
+        // Helper function for testing object returns
+        window.getPageInfo = function() {
+            return {
+                title: document.title,
+                url: window.location.href,
+                timestamp: Date.now(),
+                counter: globalCounter
+            };
+        };
+
+        // Helper function for testing DOM manipulation
+        window.addListItem = function(text) {
+            const list = document.getElementById('dynamic-list');
+            const item = document.createElement('li');
+            item.textContent = text;
+            list.appendChild(item);
+            return list.children.length;
+        };
+
+        // Helper for testing promises
+        window.fetchDataAsync = function() {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve({
+                        status: 'success',
+                        data: 'Async data loaded',
+                        timestamp: Date.now()
+                    });
+                }, 500);
+            });
+        };
+
+        console.log('Script execution test page loaded successfully');
+    </script>
+</body>
+</html>
