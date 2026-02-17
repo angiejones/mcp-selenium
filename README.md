@@ -83,14 +83,51 @@ npm install -g @angiejones/mcp-selenium
 
 ### Usage
 
-Start the server by running:
+Start the server in stdio mode (default):
 
 ```bash
 mcp-selenium
 ```
 
-Or use with NPX in your MCP configuration:
+Or start in streamable HTTP mode:
 
+```bash
+mcp-selenium --transport streamable-http --host 127.0.0.1 --port 9887
+```
+
+Health check endpoint:
+
+```bash
+curl http://127.0.0.1:9887/health
+```
+
+MCP endpoint:
+
+```text
+http://127.0.0.1:9887/mcp
+```
+
+
+### Configuration for MCP Clients
+
+There are two ways to use MCP Selenium with MCP clients:
+
+#### Option 1: Auto-start (Recommended)
+The MCP client automatically starts and manages the server process.
+
+**For stdio transport (default):**
+```json
+{
+  "mcpServers": {
+    "selenium": {
+      "command": "npx",
+      "args": ["-y", "@angiejones/mcp-selenium"]
+    }
+  }
+}
+```
+
+**For HTTP transport with auto-start:**
 ```json
 {
   "mcpServers": {
@@ -98,14 +135,37 @@ Or use with NPX in your MCP configuration:
       "command": "npx",
       "args": [
         "-y",
-        "@angiejones/mcp-selenium"
+        "@angiejones/mcp-selenium",
+        "--transport",
+        "streamable-http",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "9887"
       ]
     }
   }
 }
 ```
 
+#### Option 2: Manual Server (For Development/Testing)
+Start the server manually, then configure the client to connect to it.
 
+1. **Start the server:**
+```bash
+mcp-selenium --transport streamable-http --host 0.0.0.0 --port 8811
+```
+
+2. **Configure mcp.json to connect:**
+```json
+{
+  "servers": {
+    "MCP Selenium": {
+      "url": "http://127.0.0.1:8811/mcp"
+    }
+  }
+}
+```
 
 ## Tools
 

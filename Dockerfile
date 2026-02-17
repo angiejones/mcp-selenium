@@ -31,4 +31,4 @@ RUN npm install
 COPY . .
 
 # Start the MCP server
-CMD ["node", "src/lib/server.js"]
+ENTRYPOINT ["node", "src/lib/server.js"]

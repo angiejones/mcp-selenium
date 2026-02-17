@@ -2,31 +2,241 @@
 
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { z } from "zod";
 import pkg from 'selenium-webdriver';
-const { Builder, By, Key, until, Actions } = pkg;
+const { Builder, By, Key, until, Actions, Browser } = pkg;
 import { Options as ChromeOptions } from 'selenium-webdriver/chrome.js';
 import { Options as FirefoxOptions } from 'selenium-webdriver/firefox.js';
 import { Options as EdgeOptions } from 'selenium-webdriver/edge.js';
 
 
-// Create an MCP server
-const server = new McpServer({
-    name: "MCP Selenium",
-    version: "1.0.0"
-});
-
 // Server state
 const state = {
-    drivers: new Map(),
-    currentSession: null
+    drivers: new Map(), // Map of driver session IDs to driver instances
+    sessionDrivers: new Map(), // Map of MCP session IDs to driver session IDs
+    httpServer: null,
+    streamableTransports: new Map(),
+    mcpServers: new Map() // Map of MCP session IDs to McpServer instances
+};
+
+const MAX_REQUEST_BODY_SIZE = 1024 * 1024; // 1 MB limit
+
+const readJsonBody = async (req) => {
+    const chunks = [];
+    let totalSize = 0;
+    
+    for await (const chunk of req) {
+        totalSize += chunk.length;
+        if (totalSize > MAX_REQUEST_BODY_SIZE) {
+            const error = new Error('Request body too large');
+            error.statusCode = 413;
+            throw error;
+        }
+        chunks.push(chunk);
+    }
+
+    if (!chunks.length) {
+        return undefined;
+    }
+
+    return JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+};
+
+const isInitializePayload = (payload) => {
+    if (!payload) {
+        return false;
+    }
+
+    if (Array.isArray(payload)) {
+        return payload.some((message) => isInitializeRequest(message));
+    }
+
+    return isInitializeRequest(payload);
+};
+
+const parseServerConfig = () => {
+    const args = process.argv.slice(2);
+    const config = {
+        transport: 'stdio',
+        port: 9887,
+        host: '0.0.0.0'
+    };
+
+    for (let i = 0; i < args.length; i += 1) {
+        const arg = args[i];
+        if (arg.startsWith('--transport=')) {
+            config.transport = arg.split('=')[1];
+        } else if (arg === '--transport' && args[i + 1]) {
+            config.transport = args[i + 1];
+            i += 1;
+        } else if (arg.startsWith('--port=')) {
+            config.port = Number(arg.split('=')[1]);
+        } else if (arg === '--port' && args[i + 1]) {
+            config.port = Number(args[i + 1]);
+            i += 1;
+        } else if (arg.startsWith('--host=')) {
+            config.host = arg.split('=')[1];
+        } else if (arg === '--host' && args[i + 1]) {
+            config.host = args[i + 1];
+            i += 1;
+        }
+    }
+
+    const supportedTransports = new Set(['stdio', 'streamable-http']);
+    if (!supportedTransports.has(config.transport)) {
+        throw new Error(`Unsupported transport: ${config.transport}. Use one of: stdio, streamable-http`);
+    }
+
+    if (!Number.isInteger(config.port) || config.port <= 0 || config.port > 65535) {
+        throw new Error(`Invalid port: ${config.port}. Port must be between 1 and 65535.`);
+    }
+
+    return config;
+};
+
+const startStreamableHttpServer = async ({ host, port }) => {
+    state.httpServer = createServer(async (req, res) => {
+        const url = new URL(req.url || '/', `http://${req.headers.host || `${host}:${port}`}`);
+
+        if (req.method === 'GET' && url.pathname === '/health') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ status: 'ok', transport: 'streamable-http' }));
+            return;
+        }
+
+        if (url.pathname === '/mcp') {
+            try {
+                const sessionHeader = req.headers['mcp-session-id'];
+                const sessionId = Array.isArray(sessionHeader) ? sessionHeader[0] : sessionHeader;
+
+                let parsedBody;
+                if (req.method === 'POST') {
+                    parsedBody = await readJsonBody(req);
+                }
+
+                let transport = sessionId ? state.streamableTransports.get(sessionId) : undefined;
+
+                if (!transport) {
+                    const isInitialize = req.method === 'POST' && isInitializePayload(parsedBody);
+
+                    if (!isInitialize) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({
+                            jsonrpc: '2.0',
+                            error: {
+                                code: -32000,
+                                message: 'Bad Request: No valid session ID provided'
+                            },
+                            id: null
+                        }));
+                        return;
+                    }
+
+                    // Create a new MCP server instance for this session
+                    const mcpServer = createMcpServer();
+
+                    transport = new StreamableHTTPServerTransport({
+                        sessionIdGenerator: () => randomUUID(),
+                        onsessioninitialized: (newSessionId) => {
+                            state.streamableTransports.set(newSessionId, transport);
+                            // Register MCP server under correct session ID after it's been assigned
+                            state.mcpServers.set(newSessionId, mcpServer);
+                        }
+                    });
+
+                    transport.onclose = async () => {
+                        if (transport.sessionId) {
+                            // Clean up any browser drivers associated with this MCP session
+                            const driverSessionId = state.sessionDrivers.get(transport.sessionId);
+                            if (driverSessionId) {
+                                const driver = state.drivers.get(driverSessionId);
+                                if (driver) {
+                                    try {
+                                        await driver.quit();
+                                    } catch (e) {
+                                        console.error(`Error closing driver for session ${transport.sessionId}:`, e);
+                                    }
+                                    state.drivers.delete(driverSessionId);
+                                }
+                                state.sessionDrivers.delete(transport.sessionId);
+                            }
+                            
+                            // Clean up the MCP server instance for this session
+                            const mcpServer = state.mcpServers.get(transport.sessionId);
+                            if (mcpServer) {
+                                try {
+                                    await mcpServer.close();
+                                } catch (e) {
+                                    console.error(`Error closing MCP server for session ${transport.sessionId}:`, e);
+                                }
+                                state.mcpServers.delete(transport.sessionId);
+                            }
+                            
+                            state.streamableTransports.delete(transport.sessionId);
+                        }
+                    };
+
+                    // Connect and initialize the MCP server
+                    await mcpServer.connect(transport);
+                }
+
+                await transport.handleRequest(req, res, parsedBody);
+            } catch (error) {
+                if (!res.headersSent) {
+                    // Handle payload too large error
+                    if (error.statusCode === 413) {
+                        res.writeHead(413, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({
+                            jsonrpc: '2.0',
+                            error: {
+                                code: -32000,
+                                message: 'Payload too large',
+                                data: error.message
+                            },
+                            id: null
+                        }));
+                    } else {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({
+                            jsonrpc: '2.0',
+                            error: {
+                                code: -32700,
+                                message: 'Parse error',
+                                data: error.message
+                            },
+                            id: null
+                        }));
+                    }
+                }
+            }
+            return;
+        }
+
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not found' }));
+    });
+
+    await new Promise((resolve) => state.httpServer.listen(port, host, resolve));
+    console.error(`MCP Selenium (streamable-http) listening on http://${host}:${port}/mcp`);
+
 };
 
 // Helper functions
-const getDriver = () => {
-    const driver = state.drivers.get(state.currentSession);
+const getDriver = (mcpSessionId) => {
+    if (!mcpSessionId) {
+        throw new Error('No MCP session ID provided');
+    }
+    const driverSessionId = state.sessionDrivers.get(mcpSessionId);
+    if (!driverSessionId) {
+        throw new Error('No active browser session for this MCP session');
+    }
+    const driver = state.drivers.get(driverSessionId);
     if (!driver) {
-        throw new Error('No active browser session');
+        throw new Error('Browser driver not found');
     }
     return driver;
 };
@@ -42,7 +252,10 @@ const getLocator = (by, value) => {
         default: throw new Error(`Unsupported locator strategy: ${by}`);
     }
 };
-
+const getRemoteWebDriverUrl = (browser) => {
+    const byBrowser = process.env[`${browser.toUpperCase()}_REMOTE_URL`];
+    return byBrowser || process.env.SELENIUM_REMOTE_URL;
+};
 // Common schemas
 const browserOptionsSchema = z.object({
     headless: z.boolean().optional().describe("Run browser in headless mode"),
@@ -55,27 +268,74 @@ const locatorSchema = {
     timeout: z.number().optional().describe("Maximum time to wait for element in milliseconds")
 };
 
+// Factory function to create and configure an MCP server instance
+const createMcpServer = () => {
+    const server = new McpServer({
+        name: "MCP Selenium",
+        version: "1.0.0"
+    });
+
 // Browser Management Tools
-server.tool(
+server.registerTool(
     "start_browser",
-    "launches browser",
     {
-        browser: z.enum(["chrome", "firefox", "edge"]).describe("Browser to launch (chrome or firefox or microsoft edge)"),
-        options: browserOptionsSchema
+        description: "launches browser",
+        inputSchema: {
+            browser: z.enum(["chrome", "firefox", "edge"]).describe("Browser to launch (chrome or firefox or microsoft edge)"),
+            options: browserOptionsSchema
+        }
     },
-    async ({ browser, options = {} }) => {
+    async ({ browser, options = {} }, { sessionId }) => {
         try {
             let builder = new Builder();
             let driver;
+
+            const remoteUrl = getRemoteWebDriverUrl(browser);
+            if (remoteUrl) {
+                builder = builder.usingServer(remoteUrl);
+            }
+
+            const userProvidedArgs = options.arguments ?? [];
+            
+            // Helper function to merge user args with defaults
+            const mergeArguments = (defaultArgs, userArgs) => {
+                const merged = [...defaultArgs];
+                userArgs.forEach(arg => {
+                    const argKey = arg.split('=')[0];
+                    const existingIndex = merged.findIndex(a => a.startsWith(argKey));
+                    if (existingIndex >= 0) {
+                        merged[existingIndex] = arg; // Override default
+                    } else {
+                        merged.push(arg); // Add new arg
+                    }
+                });
+                return merged;
+            };
+
             switch (browser) {
                 case 'chrome': {
                     const chromeOptions = new ChromeOptions();
+
+                    if (process.env.CHROME_BIN) {
+                        chromeOptions.setChromeBinaryPath(process.env.CHROME_BIN);
+                    }
+
+                    // Chromium-specific default arguments (works locally and in Docker)
+                    const defaultChromeArgs = [
+                        '--no-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-gpu',
+                        `--user-data-dir=/tmp/selenium-profile-${randomUUID()}`
+                    ];
+                    
+                    // Add headless to defaults if requested
                     if (options.headless) {
-                        chromeOptions.addArguments('--headless=new');
+                        defaultChromeArgs.push('--headless=new');
                     }
-                    if (options.arguments) {
-                        options.arguments.forEach(arg => chromeOptions.addArguments(arg));
-                    }
+                    
+                    const mergedArgs = mergeArguments(defaultChromeArgs, userProvidedArgs);
+                    mergedArgs.forEach((arg) => chromeOptions.addArguments(arg));
+
                     driver = await builder
                         .forBrowser('chrome')
                         .setChromeOptions(chromeOptions)
@@ -84,26 +344,44 @@ server.tool(
                 }
                 case 'edge': {
                     const edgeOptions = new EdgeOptions();
+
+                    // Chromium-specific default arguments (Edge is Chromium-based, works locally and in Docker)
+                    const defaultEdgeArgs = [
+                        '--no-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-gpu',
+                        `--user-data-dir=/tmp/selenium-profile-${randomUUID()}`
+                    ];
+                    
+                    // Add headless to defaults if requested
                     if (options.headless) {
-                        edgeOptions.addArguments('--headless=new');
+                        defaultEdgeArgs.push('--headless=new');
                     }
-                    if (options.arguments) {
-                        options.arguments.forEach(arg => edgeOptions.addArguments(arg));
-                    }
+                    
+                    const mergedArgs = mergeArguments(defaultEdgeArgs, userProvidedArgs);
+                    mergedArgs.forEach((arg) => edgeOptions.addArguments(arg));
+
                     driver = await builder
-                        .forBrowser('edge')
+                        .forBrowser(Browser.EDGE || 'MicrosoftEdge')
                         .setEdgeOptions(edgeOptions)
                         .build();
                     break;
                 }
                 case 'firefox': {
                     const firefoxOptions = new FirefoxOptions();
+                    
+                    // Firefox-specific default arguments
+                    const defaultFirefoxArgs = [];
+                    
+                    // Add headless to defaults if requested
                     if (options.headless) {
-                        firefoxOptions.addArguments('--headless');
+                        defaultFirefoxArgs.push('--headless');
                     }
-                    if (options.arguments) {
-                        options.arguments.forEach(arg => firefoxOptions.addArguments(arg));
-                    }
+                    
+                    // Merge with user-provided args (no Chromium defaults)
+                    const mergedArgs = mergeArguments(defaultFirefoxArgs, userProvidedArgs);
+                    mergedArgs.forEach((arg) => firefoxOptions.addArguments(arg));
+
                     driver = await builder
                         .forBrowser('firefox')
                         .setFirefoxOptions(firefoxOptions)
@@ -114,12 +392,16 @@ server.tool(
                     throw new Error(`Unsupported browser: ${browser}`);
                 }
             }
-            const sessionId = `${browser}_${Date.now()}`;
-            state.drivers.set(sessionId, driver);
-            state.currentSession = sessionId;
+            const driverSessionId = `${browser}_${Date.now()}_${randomUUID()}`;
+            
+            state.drivers.set(driverSessionId, driver);
+            
+            // Associate driver with MCP session
+            const mcpSessionId = sessionId || 'default';
+            state.sessionDrivers.set(mcpSessionId, driverSessionId);
 
             return {
-                content: [{ type: 'text', text: `Browser started with session_id: ${sessionId}` }]
+                content: [{ type: 'text', text: `Browser started with session_id: ${driverSessionId} (MCP session: ${mcpSessionId})` }]
             };
         } catch (e) {
             return {
@@ -129,15 +411,18 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "navigate",
-    "navigates to a URL",
     {
-        url: z.string().describe("URL to navigate to")
+        description: "navigates to a URL",
+        inputSchema: {
+            url: z.string().describe("URL to navigate to")
+        }
     },
-    async ({ url }) => {
+    async ({ url }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             await driver.get(url);
             return {
                 content: [{ type: 'text', text: `Navigated to ${url}` }]
@@ -151,15 +436,18 @@ server.tool(
 );
 
 // Element Interaction Tools
-server.tool(
+server.registerTool(
     "find_element",
-    "finds an element",
     {
-        ...locatorSchema
+        description: "finds an element",
+        inputSchema: {
+            ...locatorSchema
+        }
     },
-    async ({ by, value, timeout = 10000 }) => {
+    async ({ by, value, timeout = 10000 }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             const locator = getLocator(by, value);
             await driver.wait(until.elementLocated(locator), timeout);
             return {
@@ -173,15 +461,18 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "click_element",
-    "clicks an element",
     {
-        ...locatorSchema
+        description: "clicks an element",
+        inputSchema: {
+            ...locatorSchema
+        }
     },
-    async ({ by, value, timeout = 10000 }) => {
+    async ({ by, value, timeout = 10000 }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             const locator = getLocator(by, value);
             const element = await driver.wait(until.elementLocated(locator), timeout);
             await element.click();
@@ -196,16 +487,19 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "send_keys",
-    "sends keys to an element, aka typing",
     {
-        ...locatorSchema,
-        text: z.string().describe("Text to enter into the element")
+        description: "sends keys to an element, aka typing",
+        inputSchema: {
+            ...locatorSchema,
+            text: z.string().describe("Text to enter into the element")
+        }
     },
-    async ({ by, value, text, timeout = 10000 }) => {
+    async ({ by, value, text, timeout = 10000 }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             const locator = getLocator(by, value);
             const element = await driver.wait(until.elementLocated(locator), timeout);
             await element.clear();
@@ -221,15 +515,18 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "get_element_text",
-    "gets the text() of an element",
     {
-        ...locatorSchema
+        description: "gets the text() of an element",
+        inputSchema: {
+            ...locatorSchema
+        }
     },
-    async ({ by, value, timeout = 10000 }) => {
+    async ({ by, value, timeout = 10000 }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             const locator = getLocator(by, value);
             const element = await driver.wait(until.elementLocated(locator), timeout);
             const text = await element.getText();
@@ -244,15 +541,18 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "hover",
-    "moves the mouse to hover over an element",
     {
-        ...locatorSchema
+        description: "moves the mouse to hover over an element",
+        inputSchema: {
+            ...locatorSchema
+        }
     },
-    async ({ by, value, timeout = 10000 }) => {
+    async ({ by, value, timeout = 10000 }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             const locator = getLocator(by, value);
             const element = await driver.wait(until.elementLocated(locator), timeout);
             const actions = driver.actions({ bridge: true });
@@ -268,17 +568,20 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "drag_and_drop",
-    "drags an element and drops it onto another element",
     {
-        ...locatorSchema,
-        targetBy: z.enum(["id", "css", "xpath", "name", "tag", "class"]).describe("Locator strategy to find target element"),
-        targetValue: z.string().describe("Value for the target locator strategy")
+        description: "drags an element and drops it onto another element",
+        inputSchema: {
+            ...locatorSchema,
+            targetBy: z.enum(["id", "css", "xpath", "name", "tag", "class"]).describe("Locator strategy to find target element"),
+            targetValue: z.string().describe("Value for the target locator strategy")
+        }
     },
-    async ({ by, value, targetBy, targetValue, timeout = 10000 }) => {
+    async ({ by, value, targetBy, targetValue, timeout = 10000 }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             const sourceLocator = getLocator(by, value);
             const targetLocator = getLocator(targetBy, targetValue);
             const sourceElement = await driver.wait(until.elementLocated(sourceLocator), timeout);
@@ -296,15 +599,18 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "double_click",
-    "performs a double click on an element",
     {
-        ...locatorSchema
+        description: "performs a double click on an element",
+        inputSchema: {
+            ...locatorSchema
+        }
     },
-    async ({ by, value, timeout = 10000 }) => {
+    async ({ by, value, timeout = 10000 }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             const locator = getLocator(by, value);
             const element = await driver.wait(until.elementLocated(locator), timeout);
             const actions = driver.actions({ bridge: true });
@@ -320,15 +626,18 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "right_click",
-    "performs a right click (context click) on an element",
     {
-        ...locatorSchema
+        description: "performs a right click (context click) on an element",
+        inputSchema: {
+            ...locatorSchema
+        }
     },
-    async ({ by, value, timeout = 10000 }) => {
+    async ({ by, value, timeout = 10000 }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             const locator = getLocator(by, value);
             const element = await driver.wait(until.elementLocated(locator), timeout);
             const actions = driver.actions({ bridge: true });
@@ -344,15 +653,18 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "press_key",
-    "simulates pressing a keyboard key",
     {
-        key: z.string().describe("Key to press (e.g., 'Enter', 'Tab', 'a', etc.)")
+        description: "simulates pressing a keyboard key",
+        inputSchema: {
+            key: z.string().describe("Key to press (e.g., 'Enter', 'Tab', 'a', etc.)")
+        }
     },
-    async ({ key }) => {
+    async ({ key }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             const actions = driver.actions({ bridge: true });
             await actions.keyDown(key).keyUp(key).perform();
             return {
@@ -366,16 +678,19 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "upload_file",
-    "uploads a file using a file input element",
     {
-        ...locatorSchema,
-        filePath: z.string().describe("Absolute path to the file to upload")
+        description: "uploads a file using a file input element",
+        inputSchema: {
+            ...locatorSchema,
+            filePath: z.string().describe("Absolute path to the file to upload")
+        }
     },
-    async ({ by, value, filePath, timeout = 10000 }) => {
+    async ({ by, value, filePath, timeout = 10000 }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             const locator = getLocator(by, value);
             const element = await driver.wait(until.elementLocated(locator), timeout);
             await element.sendKeys(filePath);
@@ -390,15 +705,18 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "take_screenshot",
-    "captures a screenshot of the current page",
     {
-        outputPath: z.string().optional().describe("Optional path where to save the screenshot. If not provided, returns base64 data.")
+        description: "captures a screenshot of the current page",
+        inputSchema: {
+            outputPath: z.string().optional().describe("Optional path where to save the screenshot. If not provided, returns base64 data.")
+        }
     },
-    async ({ outputPath }) => {
+    async ({ outputPath }, { sessionId }) => {
         try {
-            const driver = getDriver();
+            const mcpSessionId = sessionId || 'default';
+            const driver = getDriver(mcpSessionId);
             const screenshot = await driver.takeScreenshot();
             if (outputPath) {
                 const fs = await import('fs');
@@ -422,19 +740,33 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "close_session",
-    "closes the current browser session",
-    {},
-    async () => {
+    {
+        description: "closes the current browser session",
+        inputSchema: {}
+    },
+    async ({}, { sessionId }) => {
         try {
-            const driver = getDriver();
-            await driver.quit();
-            state.drivers.delete(state.currentSession);
-            const sessionId = state.currentSession;
-            state.currentSession = null;
+            const mcpSessionId = sessionId || 'default';
+            const driverSessionId = state.sessionDrivers.get(mcpSessionId);
+            
+            if (!driverSessionId) {
+                return {
+                    content: [{ type: 'text', text: 'No active browser session for this MCP session' }]
+                };
+            }
+            
+            const driver = state.drivers.get(driverSessionId);
+            if (driver) {
+                await driver.quit();
+                state.drivers.delete(driverSessionId);
+            }
+            
+            state.sessionDrivers.delete(mcpSessionId);
+            
             return {
-                content: [{ type: 'text', text: `Browser session ${sessionId} closed` }]
+                content: [{ type: 'text', text: `Browser session ${driverSessionId} closed (MCP session: ${mcpSessionId})` }]
             };
         } catch (e) {
             return {
@@ -445,21 +777,54 @@ server.tool(
 );
 
 // Resources
-server.resource(
+server.registerResource(
     "browser-status",
     new ResourceTemplate("browser-status://current"),
-    async (uri) => ({
-        contents: [{
-            uri: uri.href,
-            text: state.currentSession
-                ? `Active browser session: ${state.currentSession}`
-                : "No active browser session"
-        }]
-    })
+    {
+        description: "Current active browser session status"
+    },
+    async (uri) => {
+        const sessions = Array.from(state.sessionDrivers.entries())
+            .map(([mcpId, driverId]) => `MCP session ${mcpId}: driver ${driverId}`)
+            .join('\n');
+        
+        return {
+            contents: [{
+                uri: uri.href,
+                text: sessions || "No active browser sessions"
+            }]
+        };
+    }
 );
+
+    return server;
+};
 
 // Cleanup handler
 async function cleanup() {
+    for (const transport of state.streamableTransports.values()) {
+        try {
+            await transport.close();
+        } catch (e) {
+            console.error('Error closing streamable-http transport:', e);
+        }
+    }
+    state.streamableTransports.clear();
+
+    for (const [sessionId, mcpServer] of state.mcpServers) {
+        try {
+            await mcpServer.close();
+        } catch (e) {
+            console.error(`Error closing MCP server for session ${sessionId}:`, e);
+        }
+    }
+    state.mcpServers.clear();
+
+    if (state.httpServer) {
+        await new Promise((resolve) => state.httpServer.close(resolve));
+        state.httpServer = null;
+    }
+
     for (const [sessionId, driver] of state.drivers) {
         try {
             await driver.quit();
@@ -468,7 +833,7 @@ async function cleanup() {
         }
     }
     state.drivers.clear();
-    state.currentSession = null;
+    state.sessionDrivers.clear();
     process.exit(0);
 }
 
@@ -476,5 +841,12 @@ process.on('SIGTERM', cleanup);
 process.on('SIGINT', cleanup);
 
 // Start the server
-const transport = new StdioServerTransport();
-await server.connect(transport);
+const config = parseServerConfig();
+
+if (config.transport === 'stdio') {
+    const server = createMcpServer();
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+} else {
+    await startStreamableHttpServer(config);
+}
