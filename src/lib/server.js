@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
@@ -165,17 +165,7 @@ const startStreamableHttpServer = async ({ host, port }) => {
                                 state.sessionDrivers.delete(transport.sessionId);
                             }
                             
-                            // Clean up the MCP server instance for this session
-                            const mcpServer = state.mcpServers.get(transport.sessionId);
-                            if (mcpServer) {
-                                try {
-                                    await mcpServer.close();
-                                } catch (e) {
-                                    console.error(`Error closing MCP server for session ${transport.sessionId}:`, e);
-                                }
-                                state.mcpServers.delete(transport.sessionId);
-                            }
-                            
+                            state.mcpServers.delete(transport.sessionId);
                             state.streamableTransports.delete(transport.sessionId);
                         }
                     };
@@ -220,7 +210,13 @@ const startStreamableHttpServer = async ({ host, port }) => {
         res.end(JSON.stringify({ error: 'Not found' }));
     });
 
-    await new Promise((resolve) => state.httpServer.listen(port, host, resolve));
+    await new Promise((resolve, reject) => {
+        state.httpServer.once('error', reject);
+        state.httpServer.listen(port, host, () => {
+            state.httpServer.removeListener('error', reject);
+            resolve();
+        });
+    });
     console.error(`MCP Selenium (streamable-http) listening on http://${host}:${port}/mcp`);
 
 };
@@ -392,12 +388,24 @@ server.registerTool(
                     throw new Error(`Unsupported browser: ${browser}`);
                 }
             }
-            const driverSessionId = `${browser}_${Date.now()}_${randomUUID()}`;
             
-            state.drivers.set(driverSessionId, driver);
-            
-            // Associate driver with MCP session
+            // Get MCP session ID first
             const mcpSessionId = sessionId || 'default';
+            
+            // Close existing driver for this session if present (prevents orphaned browser processes)
+            const existingDriverId = state.sessionDrivers.get(mcpSessionId);
+            if (existingDriverId) {
+                const existingDriver = state.drivers.get(existingDriverId);
+                if (existingDriver) {
+                    await existingDriver.quit().catch(() => {});
+                    state.drivers.delete(existingDriverId);
+                }
+                state.sessionDrivers.delete(mcpSessionId);
+            }
+            
+            // Now add the new driver
+            const driverSessionId = `${browser}_${Date.now()}_${randomUUID()}`;
+            state.drivers.set(driverSessionId, driver);
             state.sessionDrivers.set(mcpSessionId, driverSessionId);
 
             return {
@@ -779,7 +787,7 @@ server.registerTool(
 // Resources
 server.registerResource(
     "browser-status",
-    new ResourceTemplate("browser-status://current"),
+    "browser-status://current",
     {
         description: "Current active browser session status"
     },
@@ -802,6 +810,16 @@ server.registerResource(
 
 // Cleanup handler
 async function cleanup() {
+    // 1. Stop HTTP server first to prevent new connections during shutdown
+    if (state.httpServer) {
+        if (typeof state.httpServer.closeAllConnections === 'function') {
+            state.httpServer.closeAllConnections();
+        }
+        await new Promise((resolve) => state.httpServer.close(resolve));
+        state.httpServer = null;
+    }
+
+    // 2. Close all active transports
     for (const transport of state.streamableTransports.values()) {
         try {
             await transport.close();
@@ -811,6 +829,7 @@ async function cleanup() {
     }
     state.streamableTransports.clear();
 
+    // 3. Close all MCP server instances (safety net for async onclose cleanup)
     for (const [sessionId, mcpServer] of state.mcpServers) {
         try {
             await mcpServer.close();
@@ -820,11 +839,7 @@ async function cleanup() {
     }
     state.mcpServers.clear();
 
-    if (state.httpServer) {
-        await new Promise((resolve) => state.httpServer.close(resolve));
-        state.httpServer = null;
-    }
-
+    // 4. Quit all browser drivers
     for (const [sessionId, driver] of state.drivers) {
         try {
             await driver.quit();
