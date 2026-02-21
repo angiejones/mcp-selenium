@@ -200,7 +200,6 @@ server.resource(
 | **stdout pollution** | The server uses stdio transport. Any `console.log()` will corrupt the JSON-RPC stream. Use `console.error()` for debug output. |
 | **`send_keys` clears first** | The `send_keys` tool calls `element.clear()` before typing. This is intentional but may surprise users expecting append behavior. |
 | **No session switching** | Multiple sessions can exist in `state.drivers`, but there's no tool to switch `currentSession` between them. |
-| **`tag` locator maps to CSS** | The `"tag"` locator strategy uses `By.css(value)`, not `By.tagName(value)`. This may produce unexpected results if the user passes a tag name expecting `By.tagName`. |
 | **Headless flag differs by browser** | Chrome/Edge use `--headless=new`, Firefox uses `--headless`. This is handled correctly in the code. |
 
 ---
