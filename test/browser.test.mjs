@@ -4,7 +4,7 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { McpClient, getResponseText } from './mcp-client.mjs';
+import { McpClient, getResponseText, fixture } from './mcp-client.mjs';
 
 describe('Browser Management', () => {
   let client;
@@ -65,9 +65,7 @@ describe('Browser Management', () => {
         browser: 'chrome',
         options: { headless: true, arguments: ['--no-sandbox'] },
       });
-      await client.callTool('navigate', {
-        url: 'data:text/html,<html><body><h1>Screenshot Test</h1></body></html>',
-      });
+      await client.callTool('navigate', { url: fixture('locators.html') });
     });
 
     after(async () => {

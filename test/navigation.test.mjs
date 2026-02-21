@@ -4,10 +4,7 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { McpClient, getResponseText } from './mcp-client.mjs';
-
-// Keep data URIs short — long ones get truncated by Chrome
-const LOCATOR_PAGE = `data:text/html,<h1 id="t" class="h" name="n">Hi</h1><p>Text</p><a href="x">Link</a><input id="i"><button>Go</button>`;
+import { McpClient, getResponseText, fixture } from './mcp-client.mjs';
 
 describe('Navigation & Element Locators', () => {
   let client;
@@ -28,7 +25,7 @@ describe('Navigation & Element Locators', () => {
 
   describe('navigate', () => {
     it('should navigate to a URL', async () => {
-      const result = await client.callTool('navigate', { url: LOCATOR_PAGE });
+      const result = await client.callTool('navigate', { url: fixture('locators.html') });
       const text = getResponseText(result);
       assert.ok(text.includes('Navigated to'), `Expected "Navigated to", got: ${text}`);
     });
@@ -48,17 +45,17 @@ describe('Navigation & Element Locators', () => {
 
   describe('find_element', () => {
     before(async () => {
-      await client.callTool('navigate', { url: LOCATOR_PAGE });
+      await client.callTool('navigate', { url: fixture('locators.html') });
     });
 
     it('should find element by id', async () => {
-      const result = await client.callTool('find_element', { by: 'id', value: 't' });
+      const result = await client.callTool('find_element', { by: 'id', value: 'title' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
 
     it('should find element by css', async () => {
-      const result = await client.callTool('find_element', { by: 'css', value: '.h' });
+      const result = await client.callTool('find_element', { by: 'css', value: '.heading' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
@@ -70,7 +67,7 @@ describe('Navigation & Element Locators', () => {
     });
 
     it('should find element by name', async () => {
-      const result = await client.callTool('find_element', { by: 'name', value: 'n' });
+      const result = await client.callTool('find_element', { by: 'name', value: 'intro-text' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
@@ -100,7 +97,13 @@ describe('Navigation & Element Locators', () => {
     });
 
     it('should find element by class', async () => {
-      const result = await client.callTool('find_element', { by: 'class', value: 'h' });
+      const result = await client.callTool('find_element', { by: 'class', value: 'content' });
+      const text = getResponseText(result);
+      assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
+    });
+
+    it('should find nested element by css', async () => {
+      const result = await client.callTool('find_element', { by: 'css', value: '#nested .inner' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });

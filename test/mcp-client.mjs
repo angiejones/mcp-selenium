@@ -5,11 +5,12 @@
  */
 
 import { spawn } from 'child_process';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SERVER_PATH = join(__dirname, '..', 'src', 'lib', 'server.js');
+const FIXTURES_DIR = join(__dirname, 'fixtures');
 
 export class McpClient {
   #process = null;
@@ -139,4 +140,11 @@ export class McpClient {
  */
 export function getResponseText(result) {
   return result?.content?.[0]?.text ?? '';
+}
+
+/**
+ * Returns a file:// URL for a fixture HTML file.
+ */
+export function fixture(name) {
+  return pathToFileURL(join(FIXTURES_DIR, name)).href;
 }

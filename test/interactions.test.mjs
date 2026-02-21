@@ -5,12 +5,7 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { McpClient, getResponseText } from './mcp-client.mjs';
-
-// Short data URIs to avoid Chrome truncation
-const INTERACTION_PAGE = `data:text/html,<input id="t"><button id="b" onclick="document.getElementById('o').textContent='clicked'">Go</button><div id="o"></div><p id="p">Hello</p>`;
-const MOUSE_PAGE = `data:text/html,<div id="h" onmouseover="this.textContent='hovered'">H</div><div id="d" ondblclick="this.textContent='dbl'">D</div><div id="r" oncontextmenu="this.textContent='ctx';return false">R</div>`;
-const DRAG_PAGE = `data:text/html,<div id="a" draggable="true">Drag</div><div id="b2">Drop</div>`;
+import { McpClient, getResponseText, fixture } from './mcp-client.mjs';
 
 describe('Element Interactions', () => {
   let client;
@@ -31,13 +26,19 @@ describe('Element Interactions', () => {
 
   describe('click_element', () => {
     before(async () => {
-      await client.callTool('navigate', { url: INTERACTION_PAGE });
+      await client.callTool('navigate', { url: fixture('interactions.html') });
     });
 
     it('should click a button', async () => {
-      const result = await client.callTool('click_element', { by: 'id', value: 'b' });
+      const result = await client.callTool('click_element', { by: 'id', value: 'btn' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
+    });
+
+    it('should verify click had effect', async () => {
+      const result = await client.callTool('get_element_text', { by: 'id', value: 'output' });
+      const text = getResponseText(result);
+      assert.ok(text.includes('clicked'), `Expected "clicked" in output, got: ${text}`);
     });
 
     it('should error when element not found', async () => {
@@ -49,13 +50,13 @@ describe('Element Interactions', () => {
 
   describe('send_keys', () => {
     before(async () => {
-      await client.callTool('navigate', { url: INTERACTION_PAGE });
+      await client.callTool('navigate', { url: fixture('interactions.html') });
     });
 
     it('should type text into an input', async () => {
       const result = await client.callTool('send_keys', {
         by: 'id',
-        value: 't',
+        value: 'textbox',
         text: 'hello world',
       });
       const text = getResponseText(result);
@@ -65,7 +66,7 @@ describe('Element Interactions', () => {
     it('should clear and retype (default behavior)', async () => {
       const result = await client.callTool('send_keys', {
         by: 'id',
-        value: 't',
+        value: 'textbox',
         text: 'new text',
       });
       const text = getResponseText(result);
@@ -75,16 +76,16 @@ describe('Element Interactions', () => {
 
   describe('get_element_text', () => {
     before(async () => {
-      await client.callTool('navigate', { url: INTERACTION_PAGE });
+      await client.callTool('navigate', { url: fixture('interactions.html') });
     });
 
     it('should return text content of an element', async () => {
       const result = await client.callTool('get_element_text', {
         by: 'id',
-        value: 'p',
+        value: 'text-content',
       });
       const text = getResponseText(result);
-      assert.ok(text.includes('Hello'), `Expected "Hello", got: ${text}`);
+      assert.ok(text.includes('This is some text content'), `Expected text content, got: ${text}`);
     });
 
     it('should error when element not found', async () => {
@@ -99,11 +100,11 @@ describe('Element Interactions', () => {
 
   describe('hover', () => {
     before(async () => {
-      await client.callTool('navigate', { url: MOUSE_PAGE });
+      await client.callTool('navigate', { url: fixture('mouse-actions.html') });
     });
 
     it('should hover over an element', async () => {
-      const result = await client.callTool('hover', { by: 'id', value: 'h' });
+      const result = await client.callTool('hover', { by: 'id', value: 'hover-target' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
@@ -111,11 +112,11 @@ describe('Element Interactions', () => {
 
   describe('double_click', () => {
     before(async () => {
-      await client.callTool('navigate', { url: MOUSE_PAGE });
+      await client.callTool('navigate', { url: fixture('mouse-actions.html') });
     });
 
     it('should double-click an element', async () => {
-      const result = await client.callTool('double_click', { by: 'id', value: 'd' });
+      const result = await client.callTool('double_click', { by: 'id', value: 'dblclick-target' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
@@ -123,11 +124,11 @@ describe('Element Interactions', () => {
 
   describe('right_click', () => {
     before(async () => {
-      await client.callTool('navigate', { url: MOUSE_PAGE });
+      await client.callTool('navigate', { url: fixture('mouse-actions.html') });
     });
 
     it('should right-click an element', async () => {
-      const result = await client.callTool('right_click', { by: 'id', value: 'r' });
+      const result = await client.callTool('right_click', { by: 'id', value: 'rclick-target' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
@@ -135,8 +136,8 @@ describe('Element Interactions', () => {
 
   describe('press_key', () => {
     before(async () => {
-      await client.callTool('navigate', { url: INTERACTION_PAGE });
-      await client.callTool('click_element', { by: 'id', value: 't' });
+      await client.callTool('navigate', { url: fixture('interactions.html') });
+      await client.callTool('click_element', { by: 'id', value: 'textbox' });
     });
 
     it('should press a single character key', async () => {
@@ -178,15 +179,15 @@ describe('Element Interactions', () => {
 
   describe('drag_and_drop', () => {
     before(async () => {
-      await client.callTool('navigate', { url: DRAG_PAGE });
+      await client.callTool('navigate', { url: fixture('drag-drop.html') });
     });
 
-    it('should attempt drag and drop between elements', async () => {
+    it('should drag and drop between elements', async () => {
       const result = await client.callTool('drag_and_drop', {
         by: 'id',
-        value: 'a',
+        value: 'draggable',
         targetBy: 'id',
-        targetValue: 'b2',
+        targetValue: 'droppable',
       });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
