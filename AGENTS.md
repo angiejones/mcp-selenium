@@ -195,15 +195,6 @@ Tests talk to the real MCP server over stdio using JSON-RPC 2.0. No mocking.
 - **`test/mcp-client.mjs`** — Reusable client that spawns the server, handles the MCP handshake, and provides `callTool()` / `listTools()` helpers.
 - **`test/fixtures/`** — HTML files loaded via `file://` URLs. Each test file uses its own fixture. Use the `fixture('name.html')` helper to resolve paths.
 
-### Test Files
-
-| File | Covers |
-|------|--------|
-| `server.test.mjs` | Server init, tool registration, schemas |
-| `browser.test.mjs` | start_browser, close_session, take_screenshot, multi-session |
-| `navigation.test.mjs` | navigate, all 6 locator strategies (id, css, xpath, name, tag, class) |
-| `interactions.test.mjs` | click, send_keys, get_element_text, hover, double_click, right_click, press_key, drag_and_drop, upload_file |
-
 ### When Adding a New Tool
 
 1. Add a fixture in `test/fixtures/` if the tool needs HTML elements not covered by existing fixtures
