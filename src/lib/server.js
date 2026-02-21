@@ -358,9 +358,10 @@ server.tool(
             const resolvedKey = key.length === 1
                 ? key
                 : Key[key.toUpperCase().replace(/ /g, '_')] ?? null;
-            if (resolvedKey === null || resolvedKey === undefined) {
+            if (resolvedKey === null) {
                 return {
-                    content: [{ type: 'text', text: `Error pressing key: Unknown key name '${key}'. Use a single character or a named key like 'Enter', 'Tab', 'Escape', etc.` }]
+                    content: [{ type: 'text', text: `Error pressing key: Unknown key name '${key}'. Use a single character or a named key like 'Enter', 'Tab', 'Escape', etc.` }],
+                    isError: true
                 };
             }
             const actions = driver.actions({ bridge: true });

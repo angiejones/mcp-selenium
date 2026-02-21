@@ -42,13 +42,16 @@ describe('Navigation & Element Locators', () => {
     it('should error on no active session', async () => {
       const freshClient = new McpClient();
       await freshClient.start();
-      const result = await freshClient.callTool('navigate', { url: 'https://example.com' });
-      const text = getResponseText(result);
-      assert.ok(
-        text.includes('Error') || text.includes('No active'),
-        `Expected error, got: ${text}`
-      );
-      await freshClient.stop();
+      try {
+        const result = await freshClient.callTool('navigate', { url: 'https://example.com' });
+        const text = getResponseText(result);
+        assert.ok(
+          text.includes('Error') || text.includes('No active'),
+          `Expected error, got: ${text}`
+        );
+      } finally {
+        await freshClient.stop();
+      }
     });
   });
 

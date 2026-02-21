@@ -51,6 +51,13 @@ export class McpClient {
       }
     });
 
+    this.#process.on('close', (code) => {
+      for (const [id, { reject }] of this.#pending) {
+        reject(new Error(`Server process exited unexpectedly (code ${code})`));
+      }
+      this.#pending.clear();
+    });
+
     // Initialize MCP handshake
     const initResp = await this.#sendRequest('initialize', {
       protocolVersion: '2024-11-05',
