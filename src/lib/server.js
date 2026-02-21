@@ -37,7 +37,7 @@ const getLocator = (by, value) => {
         case 'css': return By.css(value);
         case 'xpath': return By.xpath(value);
         case 'name': return By.name(value);
-        case 'tag': return By.css(value);
+        case 'tag': return By.tagName(value);
         case 'class': return By.className(value);
         default: throw new Error(`Unsupported locator strategy: ${by}`);
     }
