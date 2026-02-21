@@ -27,10 +27,22 @@ mcp-selenium/
 ├── README.md              ← User-facing docs: installation, usage, tool reference
 ├── package.json           ← Dependencies, scripts, npm metadata
 ├── smithery.yaml          ← Smithery deployment config (stdio start command)
-└── src/
-    ├── index.js           ← CLI entry point: spawns server.js as child process
-    └── lib/
-        └── server.js      ← ⭐ ALL server logic lives here
+├── src/
+│   ├── index.js           ← CLI entry point: spawns server.js as child process
+│   └── lib/
+│       └── server.js      ← ⭐ ALL server logic lives here
+└── test/
+    ├── mcp-client.mjs     ← Reusable MCP client for tests (JSON-RPC over stdio)
+    ├── server.test.mjs    ← Server init, tool registration, schemas
+    ├── browser.test.mjs   ← start_browser, close_session, take_screenshot, multi-session
+    ├── navigation.test.mjs ← navigate, all 6 locator strategies
+    ├── interactions.test.mjs ← click, send_keys, get_element_text, hover, double_click, right_click, press_key, drag_and_drop, upload_file
+    └── fixtures/           ← HTML files loaded via file:// URLs
+        ├── locators.html
+        ├── interactions.html
+        ├── mouse-actions.html
+        ├── drag-drop.html
+        └── upload.html
 ```
 
 ### Key Files in Detail
@@ -39,6 +51,8 @@ mcp-selenium/
 |------|---------|--------------|
 | `src/lib/server.js` | MCP server: tool definitions, resource definitions, Selenium driver management, cleanup handlers | Adding/modifying tools, fixing MCP compliance, changing browser behavior |
 | `src/index.js` | Thin CLI wrapper that spawns `server.js` as a child process with signal forwarding | Only if changing how the process is launched |
+| `test/mcp-client.mjs` | Reusable MCP client that spawns the server, handles handshake, provides `callTool()` / `listTools()` / `fixture()` helpers | When changing test infrastructure |
+| `test/fixtures/` | Purpose-built HTML files for tests, one per test category | When a test needs elements not in existing fixtures |
 | `package.json` | npm metadata, dependency versions, `"bin"` entry for `mcp-selenium` CLI | Bumping versions, adding dependencies |
 | `smithery.yaml` | Declares how Smithery should start the server (`node src/lib/server.js`) | Only if changing the start command |
 | `README.md` | User docs: installation, client config examples, tool reference table | When adding/removing/changing tools |
@@ -75,7 +89,6 @@ const state = {
 - **Session IDs** are formatted as `{browser}_{Date.now()}` (e.g., `chrome_1708531200000`)
 - Only one session is "current" at a time (set by `start_browser`, cleared by `close_session`)
 - Multiple sessions can exist in the `drivers` Map, but tools always operate on `currentSession`
-- There is **no tool to switch between sessions** — this is a known limitation
 
 ### Helper Functions
 
@@ -90,13 +103,6 @@ const state = {
 - `src/index.js` forwards these signals to the child process
 
 ---
-
-## MCP Specification Compliance
-
-> **Reference:** https://modelcontextprotocol.io/specification/2025-11-25
->
-> The MCP spec uses RFC 2119 keywords (MUST, SHOULD, MAY). 
-
 
 ## Development Guide
 
@@ -135,10 +141,10 @@ interact with it.
 
 1. **ES Modules** — The project uses `"type": "module"` in package.json. Use `import`/`export`, not `require`.
 2. **Zod for schemas** — All tool input schemas are defined with Zod and automatically converted to JSON Schema by the MCP SDK.
-3. **Error handling pattern** — Every tool handler wraps its logic in `try/catch` and returns error text in the `content` array. (See compliance issue #1 above — `isError: true` should be added.)
+3. **Error handling pattern** — Every tool handler wraps its logic in `try/catch` and returns error text in the `content` array with `isError: true`.
 4. **No TypeScript** — The project is plain JavaScript with no build step.
-5. **No tests** — There is currently no test suite. Consider adding integration tests with a headless browser.
-6. **Single-file server** — All MCP logic is in `server.js`. There is no router, no middleware, no framework beyond the MCP SDK.
+5. **Single-file server** — All MCP logic is in `server.js`. There is no router, no middleware, no framework beyond the MCP SDK.
+6. **MCP compliance** — Before modifying server behavior, read the [MCP spec](https://modelcontextprotocol.io/specification/2025-11-25). Don't violate it.
 
 ### Adding a New Tool
 
@@ -174,34 +180,6 @@ After adding a tool:
 2. Run `npm test` and confirm all tests pass
 3. Update `README.md` with the new tool's documentation
 
----
-
-## Testing
-
-The project has a regression test suite using Node's built-in `node:test` runner — zero external test dependencies.
-
-### Running Tests
-
-```bash
-npm test
-```
-
-Requires Chrome + chromedriver on PATH. Tests run headless.
-
-### How It Works
-
-Tests talk to the real MCP server over stdio using JSON-RPC 2.0. No mocking.
-
-- **`test/mcp-client.mjs`** — Reusable client that spawns the server, handles the MCP handshake, and provides `callTool()` / `listTools()` helpers.
-- **`test/fixtures/`** — HTML files loaded via `file://` URLs. Each test file uses its own fixture. Use the `fixture('name.html')` helper to resolve paths.
-
-### When Adding a New Tool
-
-1. Add a fixture in `test/fixtures/` if the tool needs HTML elements not covered by existing fixtures
-2. Add tests to the appropriate `test/*.test.mjs` file (or create a new one)
-3. **Verify outcomes** — don't just check for "no error". Use `get_element_text` or other tools to confirm the action had the expected effect on the DOM
-4. Run `npm test` and confirm all tests pass
-
 ### Adding a New Resource
 
 ```js
@@ -220,6 +198,50 @@ server.resource(
 
 ---
 
+## Testing
+
+> **Testing philosophy: Verify outcomes, not absence of errors.** Every test must
+> assert that the action had the expected effect — not just that it didn't crash.
+> If you click a button, check that the thing it was supposed to do actually happened.
+> If you find an element, confirm it's the right one. If a test is failing, fix the
+> code or the test setup — never weaken the assertion to get a green check. A passing
+> test that proves nothing is worse than no test at all.
+
+The project has a regression test suite using Node's built-in `node:test` runner — zero external test dependencies.
+
+### Running Tests
+
+```bash
+npm test
+```
+
+Requires Chrome + chromedriver on PATH. Tests run headless.
+
+### How It Works
+
+Tests talk to the real MCP server over stdio using JSON-RPC 2.0. No mocking.
+
+- **`test/mcp-client.mjs`** — Reusable client that spawns the server, handles the MCP handshake, and provides `callTool()` / `listTools()` helpers.
+- **`test/fixtures/`** — HTML files loaded via `file://` URLs. Each test file uses its own fixture. Use the `fixture('name.html')` helper to resolve paths.
+
+### Test Files
+
+| File | Covers |
+|------|--------|
+| `server.test.mjs` | Server init, tool registration, schemas |
+| `browser.test.mjs` | start_browser, close_session, take_screenshot, multi-session |
+| `navigation.test.mjs` | navigate, all 6 locator strategies (id, css, xpath, name, tag, class) |
+| `interactions.test.mjs` | click, send_keys, get_element_text, hover, double_click, right_click, press_key, drag_and_drop, upload_file |
+
+### When Adding a New Tool
+
+1. Add a fixture in `test/fixtures/` if the tool needs HTML elements not covered by existing fixtures
+2. Add tests to the appropriate `test/*.test.mjs` file (or create a new one)
+3. **Verify outcomes** — don't just check for "no error". Use `get_element_text` or other tools to confirm the action had the expected effect on the DOM
+4. Run `npm test` and confirm all tests pass
+
+---
+
 ## Common Pitfalls
 
 | Pitfall | Details |
@@ -230,9 +252,3 @@ server.resource(
 | **`send_keys` clears first** | The `send_keys` tool calls `element.clear()` before typing. This is intentional but may surprise users expecting append behavior. |
 | **No session switching** | Multiple sessions can exist in `state.drivers`, but there's no tool to switch `currentSession` between them. |
 | **Headless flag differs by browser** | Chrome/Edge use `--headless=new`, Firefox uses `--headless`. This is handled correctly in the code. |
-
----
-
-## MCP Spec
-
-When modifying this server, keep these MCP rules in mind: https://modelcontextprotocol.io/specification/2025-11-25
