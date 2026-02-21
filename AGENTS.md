@@ -170,9 +170,8 @@ server.tool(
 ```
 
 After adding a tool:
-1. Update the tools table in this file
+1. Test with an actual MCP client
 2. Update `README.md` with the new tool's documentation
-3. Test with an actual MCP client
 
 ### Adding a New Resource
 
@@ -206,6 +205,6 @@ server.resource(
 
 ---
 
-## MCP Spec Quick Reference
+## MCP Spec
 
 When modifying this server, keep these MCP rules in mind: https://modelcontextprotocol.io/specification/2025-11-25
