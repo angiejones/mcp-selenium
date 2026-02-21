@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interaction Test Page</title>
+</head>
+<body>
+  <input type="text" id="textbox" name="textbox"
+         oninput="document.getElementById('textbox-mirror').textContent = this.value" />
+  <div id="textbox-mirror"></div>
+
+  <button id="btn" onclick="document.getElementById('output').textContent = 'clicked'">Click Me</button>
+  <div id="output"></div>
+
+  <button id="disabled-btn" disabled onclick="document.getElementById('disabled-output').textContent = 'clicked'">Disabled</button>
+  <div id="disabled-output"></div>
+
+  <p id="text-content">This is some text content</p>
+  <div id="not-an-input">I am a div</div>
+</body>
+</html>
