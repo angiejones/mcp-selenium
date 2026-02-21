@@ -4,7 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import pkg from 'selenium-webdriver';
-const { Builder, By, Key, until, Actions } = pkg;
+const { Builder, By, Key, until, Actions, error } = pkg;
 import { Options as ChromeOptions } from 'selenium-webdriver/chrome.js';
 import { Options as FirefoxOptions } from 'selenium-webdriver/firefox.js';
 import { Options as EdgeOptions } from 'selenium-webdriver/edge.js';
@@ -841,6 +841,116 @@ server.tool(
         } catch (e) {
             return {
                 content: [{ type: 'text', text: `Error sending text to alert: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+
+// Cookie Management Tools
+server.tool(
+    "add_cookie",
+    "adds a cookie to the current browser session. The browser must be on a page from the cookie's domain before setting it.",
+    {
+        name: z.string().describe("Name of the cookie"),
+        value: z.string().describe("Value of the cookie"),
+        domain: z.string().optional().describe("Domain the cookie is visible to"),
+        path: z.string().optional().describe("Path the cookie is visible to"),
+        secure: z.boolean().optional().describe("Whether the cookie is a secure cookie"),
+        httpOnly: z.boolean().optional().describe("Whether the cookie is HTTP only"),
+        expiry: z.number().optional().describe("Expiry date of the cookie as a Unix timestamp (seconds since epoch)")
+    },
+    async ({ name, value, domain, path, secure, httpOnly, expiry }) => {
+        try {
+            const driver = getDriver();
+            const cookie = { name, value };
+            if (domain !== undefined) cookie.domain = domain;
+            if (path !== undefined) cookie.path = path;
+            if (secure !== undefined) cookie.secure = secure;
+            if (httpOnly !== undefined) cookie.httpOnly = httpOnly;
+            if (expiry !== undefined) cookie.expiry = expiry;
+            await driver.manage().addCookie(cookie);
+            return {
+                content: [{ type: 'text', text: `Cookie "${name}" added` }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error adding cookie: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "get_cookies",
+    "retrieves cookies from the current browser session. Returns all cookies or a specific cookie by name.",
+    {
+        name: z.string().optional().describe("Name of a specific cookie to retrieve. If omitted, all cookies are returned.")
+    },
+    async ({ name }) => {
+        try {
+            const driver = getDriver();
+            if (name) {
+                try {
+                    const cookie = await driver.manage().getCookie(name);
+                    if (!cookie) {
+                        return {
+                            content: [{ type: 'text', text: `Cookie "${name}" not found` }],
+                            isError: true
+                        };
+                    }
+                    return {
+                        content: [{ type: 'text', text: JSON.stringify(cookie, null, 2) }]
+                    };
+                } catch (cookieError) {
+                    if (cookieError instanceof error.NoSuchCookieError) {
+                        return {
+                            content: [{ type: 'text', text: `Cookie "${name}" not found` }],
+                            isError: true
+                        };
+                    }
+                    throw cookieError;
+                }
+            } else {
+                const cookies = await driver.manage().getCookies();
+                return {
+                    content: [{ type: 'text', text: JSON.stringify(cookies, null, 2) }]
+                };
+            }
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error getting cookies: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "delete_cookie",
+    "deletes cookies from the current browser session. Can delete a specific cookie by name or all cookies.",
+    {
+        name: z.string().optional().describe("Name of the cookie to delete. If omitted, all cookies are deleted.")
+    },
+    async ({ name }) => {
+        try {
+            const driver = getDriver();
+            if (name) {
+                await driver.manage().deleteCookie(name);
+                return {
+                    content: [{ type: 'text', text: `Cookie "${name}" deleted` }]
+                };
+            } else {
+                await driver.manage().deleteAllCookies();
+                return {
+                    content: [{ type: 'text', text: 'All cookies deleted' }]
+                };
+            }
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error deleting cookie: ${e.message}` }],
                 isError: true
             };
         }
