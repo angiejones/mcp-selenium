@@ -1,5 +1,3 @@
-[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/angiejones-mcp-selenium-badge.png)](https://mseep.ai/app/angiejones-mcp-selenium)
-
 # MCP Selenium Server
 
 A Model Context Protocol (MCP) server implementation for Selenium WebDriver, enabling browser automation through standardized MCP clients.
@@ -43,7 +41,7 @@ goose://extension?cmd=npx&arg=-y&arg=%40angiejones%2Fmcp-selenium&id=selenium-mc
 * Description: `automates browser interactions`
 * Command: `npx -y @angiejones/mcp-selenium`
 
-## Use with other MCP clients (e.g. Claude Desktop, etc)
+## Use with other MCP clients (e.g. Claude Code, Cursor, etc)
 ```json
 {
   "mcpServers": {
@@ -69,7 +67,7 @@ To work on this project:
 
 #### Installing via Smithery
 
-To install MCP Selenium for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@angiejones/mcp-selenium):
+To install MCP Selenium for Claude automatically via [Smithery](https://smithery.ai/server/@angiejones/mcp-selenium):
 
 ```bash
 npx -y @smithery/cli install @angiejones/mcp-selenium --client claude
