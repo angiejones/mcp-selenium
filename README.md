@@ -436,6 +436,250 @@ None required
 ```
 
 
+### clear_element
+Clears the content of an input or textarea element.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| by | string | Yes | Locator strategy (id, css, xpath, name, tag, class) |
+| value | string | Yes | Value for the locator strategy |
+
+**Example:**
+```json
+{
+  "tool": "clear_element",
+  "parameters": {
+    "by": "id",
+    "value": "search-input"
+  }
+}
+```
+
+### get_element_attribute
+Gets the value of an attribute from an element.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| by | string | Yes | Locator strategy (id, css, xpath, name, tag, class) |
+| value | string | Yes | Value for the locator strategy |
+| attribute | string | Yes | Name of the attribute to retrieve |
+
+**Example:**
+```json
+{
+  "tool": "get_element_attribute",
+  "parameters": {
+    "by": "id",
+    "value": "my-link",
+    "attribute": "href"
+  }
+}
+```
+
+### scroll_to_element
+Scrolls the page to make an element visible.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| by | string | Yes | Locator strategy (id, css, xpath, name, tag, class) |
+| value | string | Yes | Value for the locator strategy |
+
+**Example:**
+```json
+{
+  "tool": "scroll_to_element",
+  "parameters": {
+    "by": "id",
+    "value": "footer"
+  }
+}
+```
+
+### execute_script
+Executes JavaScript in the browser and returns the result.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| script | string | Yes | JavaScript code to execute |
+
+**Example:**
+```json
+{
+  "tool": "execute_script",
+  "parameters": {
+    "script": "return document.title;"
+  }
+}
+```
+
+### get_window_handles
+Returns a list of all window/tab handles in the current session.
+
+**Parameters:**
+None required
+
+**Example:**
+```json
+{
+  "tool": "get_window_handles",
+  "parameters": {}
+}
+```
+
+### switch_to_window
+Switches focus to a specific window or tab by its handle.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| handle | string | Yes | The window handle to switch to |
+
+**Example:**
+```json
+{
+  "tool": "switch_to_window",
+  "parameters": {
+    "handle": "CDwindow-1234"
+  }
+}
+```
+
+### switch_to_latest_window
+Switches focus to the most recently opened window or tab.
+
+**Parameters:**
+None required
+
+**Example:**
+```json
+{
+  "tool": "switch_to_latest_window",
+  "parameters": {}
+}
+```
+
+### close_current_window
+Closes the current window/tab and switches back to the previous one.
+
+**Parameters:**
+None required
+
+**Example:**
+```json
+{
+  "tool": "close_current_window",
+  "parameters": {}
+}
+```
+
+### switch_to_frame
+Switches focus to an iframe within the page.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| by | string | No | Locator strategy (id, css, xpath, name, tag, class) |
+| value | string | No | Value for the locator strategy |
+| index | number | No | Frame index (0-based) |
+
+Provide either `by`/`value` to locate the frame by element, or `index` to switch by position. Omit all parameters to switch to the parent frame.
+
+**Example:**
+```json
+{
+  "tool": "switch_to_frame",
+  "parameters": {
+    "by": "id",
+    "value": "my-iframe"
+  }
+}
+```
+
+### switch_to_default_content
+Switches focus back to the main page from an iframe.
+
+**Parameters:**
+None required
+
+**Example:**
+```json
+{
+  "tool": "switch_to_default_content",
+  "parameters": {}
+}
+```
+
+### accept_alert
+Accepts (clicks OK on) a browser alert, confirm, or prompt dialog.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| timeout | number | No | Max wait time in ms (default: 5000) |
+
+**Example:**
+```json
+{
+  "tool": "accept_alert",
+  "parameters": {}
+}
+```
+
+### dismiss_alert
+Dismisses (clicks Cancel on) a browser alert or confirm dialog.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| timeout | number | No | Max wait time in ms (default: 5000) |
+
+**Example:**
+```json
+{
+  "tool": "dismiss_alert",
+  "parameters": {}
+}
+```
+
+### get_alert_text
+Gets the text content of a browser alert, confirm, or prompt dialog.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| timeout | number | No | Max wait time in ms (default: 5000) |
+
+**Example:**
+```json
+{
+  "tool": "get_alert_text",
+  "parameters": {}
+}
+```
+
+### send_alert_text
+Types text into a browser prompt dialog and accepts it.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| text | string | Yes | Text to type into the prompt |
+| timeout | number | No | Max wait time in ms (default: 5000) |
+
+**Example:**
+```json
+{
+  "tool": "send_alert_text",
+  "parameters": {
+    "text": "my input"
+  }
+}
+```
+
 ## License
 
 MIT
