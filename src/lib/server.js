@@ -68,6 +68,7 @@ server.tool(
         try {
             let builder = new Builder();
             let driver;
+            let safariWarnings = [];
             switch (browser) {
                 case 'chrome': {
                     const chromeOptions = new ChromeOptions();
@@ -114,10 +115,10 @@ server.tool(
                 case 'safari': {
                     const safariOptions = new SafariOptions();
                     if (options.headless) {
-                        console.error('Warning: Safari does not support headless mode. Ignoring headless option.');
+                        safariWarnings.push('Safari does not support headless mode — launching with visible window.');
                     }
                     if (options.arguments?.length) {
-                        console.error('Warning: Safari does not support custom arguments. Ignoring arguments option.');
+                        safariWarnings.push('Safari does not support custom arguments — ignoring.');
                     }
                     driver = await builder
                         .forBrowser('safari')
@@ -133,8 +134,13 @@ server.tool(
             state.drivers.set(sessionId, driver);
             state.currentSession = sessionId;
 
+            let message = `Browser started with session_id: ${sessionId}`;
+            if (safariWarnings.length > 0) {
+                message += `\nWarnings: ${safariWarnings.join(' ')}`;
+            }
+
             return {
-                content: [{ type: 'text', text: `Browser started with session_id: ${sessionId}` }]
+                content: [{ type: 'text', text: message }]
             };
         } catch (e) {
             return {
