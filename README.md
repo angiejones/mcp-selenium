@@ -2,6 +2,10 @@
 
 A Model Context Protocol (MCP) server implementation for Selenium WebDriver, enabling browser automation through standardized MCP clients.
 
+<a href="https://glama.ai/mcp/servers/@angiejones/mcp-selenium">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@angiejones/mcp-selenium/badge" alt="Selenium MCP server" />
+</a>
+
 ## Video Demo (Click to Watch)
 
 [![Watch the video](https://img.youtube.com/vi/mRV0N8hcgYA/sddefault.jpg)](https://youtu.be/mRV0N8hcgYA)
