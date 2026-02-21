@@ -170,8 +170,46 @@ server.tool(
 ```
 
 After adding a tool:
-1. Test with an actual MCP client
-2. Update `README.md` with the new tool's documentation
+1. Add tests to the appropriate file in `test/` (see **Testing** below)
+2. Run `npm test` and confirm all tests pass
+3. Update `README.md` with the new tool's documentation
+
+---
+
+## Testing
+
+The project has a regression test suite using Node's built-in `node:test` runner — zero external test dependencies.
+
+### Running Tests
+
+```bash
+npm test
+```
+
+Requires Chrome + chromedriver on PATH. Tests run headless.
+
+### How It Works
+
+Tests talk to the real MCP server over stdio using JSON-RPC 2.0. No mocking.
+
+- **`test/mcp-client.mjs`** — Reusable client that spawns the server, handles the MCP handshake, and provides `callTool()` / `listTools()` helpers.
+- **`test/fixtures/`** — HTML files loaded via `file://` URLs. Each test file uses its own fixture. Use the `fixture('name.html')` helper to resolve paths.
+
+### Test Files
+
+| File | Covers |
+|------|--------|
+| `server.test.mjs` | Server init, tool registration, schemas |
+| `browser.test.mjs` | start_browser, close_session, take_screenshot, multi-session |
+| `navigation.test.mjs` | navigate, all 6 locator strategies (id, css, xpath, name, tag, class) |
+| `interactions.test.mjs` | click, send_keys, get_element_text, hover, double_click, right_click, press_key, drag_and_drop, upload_file |
+
+### When Adding a New Tool
+
+1. Add a fixture in `test/fixtures/` if the tool needs HTML elements not covered by existing fixtures
+2. Add tests to the appropriate `test/*.test.mjs` file (or create a new one)
+3. **Verify outcomes** — don't just check for "no error". Use `get_element_text` or other tools to confirm the action had the expected effect on the DOM
+4. Run `npm test` and confirm all tests pass
 
 ### Adding a New Resource
 
