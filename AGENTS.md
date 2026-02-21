@@ -89,7 +89,6 @@ const state = {
 - **Session IDs** are formatted as `{browser}_{Date.now()}` (e.g., `chrome_1708531200000`)
 - Only one session is "current" at a time (set by `start_browser`, cleared by `close_session`)
 - Multiple sessions can exist in the `drivers` Map, but tools always operate on `currentSession`
-- There is **no tool to switch between sessions** — this is a known limitation
 
 ### Helper Functions
 
@@ -104,13 +103,6 @@ const state = {
 - `src/index.js` forwards these signals to the child process
 
 ---
-
-## MCP Specification Compliance
-
-> **Reference:** https://modelcontextprotocol.io/specification/2025-11-25
->
-> The MCP spec uses RFC 2119 keywords (MUST, SHOULD, MAY). 
-
 
 ## Development Guide
 
@@ -152,6 +144,7 @@ interact with it.
 3. **Error handling pattern** — Every tool handler wraps its logic in `try/catch` and returns error text in the `content` array with `isError: true`.
 4. **No TypeScript** — The project is plain JavaScript with no build step.
 5. **Single-file server** — All MCP logic is in `server.js`. There is no router, no middleware, no framework beyond the MCP SDK.
+6. **MCP compliance** — Before modifying server behavior, read the [MCP spec](https://modelcontextprotocol.io/specification/2025-11-25). Don't violate it.
 
 ### Adding a New Tool
 
@@ -259,9 +252,3 @@ Tests talk to the real MCP server over stdio using JSON-RPC 2.0. No mocking.
 | **`send_keys` clears first** | The `send_keys` tool calls `element.clear()` before typing. This is intentional but may surprise users expecting append behavior. |
 | **No session switching** | Multiple sessions can exist in `state.drivers`, but there's no tool to switch `currentSession` between them. |
 | **Headless flag differs by browser** | Chrome/Edge use `--headless=new`, Firefox uses `--headless`. This is handled correctly in the code. |
-
----
-
-## MCP Spec
-
-When modifying this server, keep these MCP rules in mind: https://modelcontextprotocol.io/specification/2025-11-25
