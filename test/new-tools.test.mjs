@@ -142,6 +142,11 @@ describe('execute_script', () => {
     assert.deepEqual(parsed, { a: 1, b: 2 });
   });
 
+  it('executes script with arguments', async () => {
+    const result = await client.callTool('execute_script', { script: 'return arguments[0] + arguments[1];', args: [10, 32] });
+    assert.equal(getResponseText(result), '42');
+  });
+
   it('returns error for invalid script', async () => {
     const result = await client.callTool('execute_script', { script: 'return undefinedVariable.property;' });
     assert.equal(result.isError, true);
@@ -266,7 +271,7 @@ describe('frame management', () => {
   });
 
   it('switch_to_frame by index', async () => {
-    let result = await client.callTool('switch_to_frame', { by: 'index', value: '0' });
+    let result = await client.callTool('switch_to_frame', { index: 0 });
     assert.equal(getResponseText(result), 'Switched to frame');
 
     result = await client.callTool('get_element_text', { by: 'id', value: 'frame-text' });
@@ -276,8 +281,8 @@ describe('frame management', () => {
     await client.callTool('switch_to_default_content');
   });
 
-  it('switch_to_frame returns error for invalid index', async () => {
-    const result = await client.callTool('switch_to_frame', { by: 'index', value: 'abc' });
+  it('switch_to_frame returns error when no locator or index provided', async () => {
+    const result = await client.callTool('switch_to_frame', {});
     assert.equal(result.isError, true);
   });
 });
@@ -299,14 +304,18 @@ describe('alert handling', () => {
     await client.stop();
   });
 
-  it('get_alert_text reads alert message', async () => {
+  it('get_alert_text reads alert message and accept_alert closes it', async () => {
     await client.callTool('click_element', { by: 'id', value: 'alert-btn' });
     const result = await client.callTool('get_alert_text');
     assert.equal(getResponseText(result), 'Hello from alert!');
+
+    // Accept the alert to close it
+    const acceptResult = await client.callTool('accept_alert');
+    assert.equal(getResponseText(acceptResult), 'Alert accepted');
   });
 
-  it('accept_alert dismisses the alert', async () => {
-    // Alert is still open from previous test
+  it('accept_alert accepts a fresh alert', async () => {
+    await client.callTool('click_element', { by: 'id', value: 'alert-btn' });
     const result = await client.callTool('accept_alert');
     assert.equal(getResponseText(result), 'Alert accepted');
   });
