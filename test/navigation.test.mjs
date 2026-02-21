@@ -6,18 +6,8 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { McpClient, getResponseText } from './mcp-client.mjs';
 
-const TEST_PAGE = `data:text/html,
-<html>
-<head><title>Test Page</title></head>
-<body>
-  <h1 id="title" class="heading">Hello World</h1>
-  <p name="intro">Welcome to the test page</p>
-  <p class="content">Second paragraph</p>
-  <button id="btn1">Click Me</button>
-  <a href="#" id="link1">Test Link</a>
-  <input type="text" id="input1" name="username" />
-</body>
-</html>`;
+// Keep data URIs short — long ones get truncated by Chrome
+const LOCATOR_PAGE = `data:text/html,<h1 id="t" class="h" name="n">Hi</h1><p>Text</p><a href="x">Link</a><input id="i"><button>Go</button>`;
 
 describe('Navigation & Element Locators', () => {
   let client;
@@ -38,13 +28,12 @@ describe('Navigation & Element Locators', () => {
 
   describe('navigate', () => {
     it('should navigate to a URL', async () => {
-      const result = await client.callTool('navigate', { url: TEST_PAGE });
+      const result = await client.callTool('navigate', { url: LOCATOR_PAGE });
       const text = getResponseText(result);
       assert.ok(text.includes('Navigated to'), `Expected "Navigated to", got: ${text}`);
     });
 
     it('should error on no active session', async () => {
-      // Create a fresh client with no browser session
       const freshClient = new McpClient();
       await freshClient.start();
       const result = await freshClient.callTool('navigate', { url: 'https://example.com' });
@@ -59,17 +48,17 @@ describe('Navigation & Element Locators', () => {
 
   describe('find_element', () => {
     before(async () => {
-      await client.callTool('navigate', { url: TEST_PAGE });
+      await client.callTool('navigate', { url: LOCATOR_PAGE });
     });
 
     it('should find element by id', async () => {
-      const result = await client.callTool('find_element', { by: 'id', value: 'title' });
+      const result = await client.callTool('find_element', { by: 'id', value: 't' });
       const text = getResponseText(result);
-      assert.ok(text.includes('found') || !text.includes('Error'), `Expected element found, got: ${text}`);
+      assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
 
     it('should find element by css', async () => {
-      const result = await client.callTool('find_element', { by: 'css', value: '.heading' });
+      const result = await client.callTool('find_element', { by: 'css', value: '.h' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
@@ -81,38 +70,42 @@ describe('Navigation & Element Locators', () => {
     });
 
     it('should find element by name', async () => {
-      const result = await client.callTool('find_element', { by: 'name', value: 'intro' });
+      const result = await client.callTool('find_element', { by: 'name', value: 'n' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
 
-    it('should find element by tag (By.tagName)', async () => {
+    it('should find element by tag — h1', async () => {
       const result = await client.callTool('find_element', { by: 'tag', value: 'h1' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
 
-    it('should find element by class', async () => {
-      const result = await client.callTool('find_element', { by: 'class', value: 'content' });
+    it('should find element by tag — a', async () => {
+      const result = await client.callTool('find_element', { by: 'tag', value: 'a' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
 
-    it('should find button by tag', async () => {
+    it('should find element by tag — input', async () => {
+      const result = await client.callTool('find_element', { by: 'tag', value: 'input' });
+      const text = getResponseText(result);
+      assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
+    });
+
+    it('should find element by tag — button', async () => {
       const result = await client.callTool('find_element', { by: 'tag', value: 'button' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
 
-    it('should find body by tag', async () => {
-      const result = await client.callTool('find_element', { by: 'tag', value: 'body' });
+    it('should find element by class', async () => {
+      const result = await client.callTool('find_element', { by: 'class', value: 'h' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
 
     it('should reject unsupported locator strategy via schema validation', async () => {
-      // Zod enum validation rejects invalid values at the RPC level (before
-      // the handler runs), so this throws an RPC error, not a tool error.
       await assert.rejects(
         () => client.callTool('find_element', { by: 'invalid', value: 'test' }),
         (err) => {

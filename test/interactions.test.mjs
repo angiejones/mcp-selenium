@@ -1,28 +1,16 @@
 /**
  * Element interaction tests — click, send_keys, get_element_text,
- * hover, double_click, right_click, press_key.
+ * hover, double_click, right_click, press_key, drag_and_drop.
  */
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { McpClient, getResponseText } from './mcp-client.mjs';
 
-const INTERACTION_PAGE = `data:text/html,
-<html>
-<head><title>Interaction Tests</title></head>
-<body>
-  <h1 id="title">Interaction Page</h1>
-  <input type="text" id="textbox" name="textbox" />
-  <button id="btn" onclick="document.getElementById('output').textContent='clicked'">Click Me</button>
-  <div id="output"></div>
-  <div id="hover-target" onmouseover="this.textContent='hovered'">Hover here</div>
-  <div id="dblclick-target" ondblclick="this.textContent='double-clicked'">Double-click here</div>
-  <div id="rclick-target" oncontextmenu="this.textContent='right-clicked'; return false;">Right-click here</div>
-  <div id="draggable" draggable="true">Drag me</div>
-  <div id="droppable">Drop here</div>
-  <p id="text-content">This is some text content</p>
-</body>
-</html>`;
+// Short data URIs to avoid Chrome truncation
+const INTERACTION_PAGE = `data:text/html,<input id="t"><button id="b" onclick="document.getElementById('o').textContent='clicked'">Go</button><div id="o"></div><p id="p">Hello</p>`;
+const MOUSE_PAGE = `data:text/html,<div id="h" onmouseover="this.textContent='hovered'">H</div><div id="d" ondblclick="this.textContent='dbl'">D</div><div id="r" oncontextmenu="this.textContent='ctx';return false">R</div>`;
+const DRAG_PAGE = `data:text/html,<div id="a" draggable="true">Drag</div><div id="b2">Drop</div>`;
 
 describe('Element Interactions', () => {
   let client;
@@ -34,7 +22,6 @@ describe('Element Interactions', () => {
       browser: 'chrome',
       options: { headless: true, arguments: ['--no-sandbox', '--disable-dev-shm-usage'] },
     });
-    await client.callTool('navigate', { url: INTERACTION_PAGE });
   });
 
   after(async () => {
@@ -43,8 +30,12 @@ describe('Element Interactions', () => {
   });
 
   describe('click_element', () => {
+    before(async () => {
+      await client.callTool('navigate', { url: INTERACTION_PAGE });
+    });
+
     it('should click a button', async () => {
-      const result = await client.callTool('click_element', { by: 'id', value: 'btn' });
+      const result = await client.callTool('click_element', { by: 'id', value: 'b' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
@@ -57,10 +48,14 @@ describe('Element Interactions', () => {
   });
 
   describe('send_keys', () => {
+    before(async () => {
+      await client.callTool('navigate', { url: INTERACTION_PAGE });
+    });
+
     it('should type text into an input', async () => {
       const result = await client.callTool('send_keys', {
         by: 'id',
-        value: 'textbox',
+        value: 't',
         text: 'hello world',
       });
       const text = getResponseText(result);
@@ -68,10 +63,9 @@ describe('Element Interactions', () => {
     });
 
     it('should clear and retype (default behavior)', async () => {
-      // send_keys calls clear() first, so this should replace previous text
       const result = await client.callTool('send_keys', {
         by: 'id',
-        value: 'textbox',
+        value: 't',
         text: 'new text',
       });
       const text = getResponseText(result);
@@ -80,16 +74,17 @@ describe('Element Interactions', () => {
   });
 
   describe('get_element_text', () => {
+    before(async () => {
+      await client.callTool('navigate', { url: INTERACTION_PAGE });
+    });
+
     it('should return text content of an element', async () => {
       const result = await client.callTool('get_element_text', {
         by: 'id',
-        value: 'text-content',
+        value: 'p',
       });
       const text = getResponseText(result);
-      assert.ok(
-        text.includes('This is some text content'),
-        `Expected text content, got: ${text}`
-      );
+      assert.ok(text.includes('Hello'), `Expected "Hello", got: ${text}`);
     });
 
     it('should error when element not found', async () => {
@@ -103,58 +98,97 @@ describe('Element Interactions', () => {
   });
 
   describe('hover', () => {
+    before(async () => {
+      await client.callTool('navigate', { url: MOUSE_PAGE });
+    });
+
     it('should hover over an element', async () => {
-      const result = await client.callTool('hover', { by: 'id', value: 'hover-target' });
+      const result = await client.callTool('hover', { by: 'id', value: 'h' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
   });
 
   describe('double_click', () => {
+    before(async () => {
+      await client.callTool('navigate', { url: MOUSE_PAGE });
+    });
+
     it('should double-click an element', async () => {
-      const result = await client.callTool('double_click', { by: 'id', value: 'dblclick-target' });
+      const result = await client.callTool('double_click', { by: 'id', value: 'd' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
   });
 
   describe('right_click', () => {
+    before(async () => {
+      await client.callTool('navigate', { url: MOUSE_PAGE });
+    });
+
     it('should right-click an element', async () => {
-      const result = await client.callTool('right_click', { by: 'id', value: 'rclick-target' });
+      const result = await client.callTool('right_click', { by: 'id', value: 'r' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
   });
 
   describe('press_key', () => {
+    before(async () => {
+      await client.callTool('navigate', { url: INTERACTION_PAGE });
+      await client.callTool('click_element', { by: 'id', value: 't' });
+    });
+
     it('should press a single character key', async () => {
-      // Focus the input first
-      await client.callTool('click_element', { by: 'id', value: 'textbox' });
       const result = await client.callTool('press_key', { key: 'a' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
 
-    it('should error on multi-character key names (known limitation)', async () => {
-      // The press_key tool passes the raw string to Selenium's keyDown(),
-      // which only accepts single Unicode code points. Named keys like
-      // "Enter" are not mapped to Key constants — this is a known bug.
+    it('should press Enter by name', async () => {
       const result = await client.callTool('press_key', { key: 'Enter' });
       const text = getResponseText(result);
-      assert.ok(text.includes('Error'), `Expected error for named key, got: ${text}`);
+      assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
+    });
+
+    it('should press Tab by name', async () => {
+      const result = await client.callTool('press_key', { key: 'Tab' });
+      const text = getResponseText(result);
+      assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
+    });
+
+    it('should press Escape by name', async () => {
+      const result = await client.callTool('press_key', { key: 'Escape' });
+      const text = getResponseText(result);
+      assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
+    });
+
+    it('should handle case-insensitive key names', async () => {
+      const result = await client.callTool('press_key', { key: 'enter' });
+      const text = getResponseText(result);
+      assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
+    });
+
+    it('should error on unknown key name', async () => {
+      const result = await client.callTool('press_key', { key: 'FakeKey' });
+      const text = getResponseText(result);
+      assert.ok(text.includes('Error') && text.includes('Unknown key name'), `Expected unknown key error, got: ${text}`);
     });
   });
 
   describe('drag_and_drop', () => {
+    before(async () => {
+      await client.callTool('navigate', { url: DRAG_PAGE });
+    });
+
     it('should attempt drag and drop between elements', async () => {
       const result = await client.callTool('drag_and_drop', {
         by: 'id',
-        value: 'draggable',
+        value: 'a',
         targetBy: 'id',
-        targetValue: 'droppable',
+        targetValue: 'b2',
       });
       const text = getResponseText(result);
-      // Drag and drop may or may not fully work in headless, but it shouldn't error
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
   });
