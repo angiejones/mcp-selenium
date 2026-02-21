@@ -35,8 +35,8 @@ mcp-selenium/
     ├── mcp-client.mjs     ← Reusable MCP client for tests (JSON-RPC over stdio)
     ├── server.test.mjs    ← Server init, tool registration, schemas
     ├── browser.test.mjs   ← start_browser, close_session, take_screenshot, multi-session
-    ├── navigation.test.mjs← navigate, all 6 locator strategies
-    ├── interactions.test.mjs ← click, send_keys, hover, press_key, drag_and_drop, upload_file
+    ├── navigation.test.mjs ← navigate, all 6 locator strategies
+    ├── interactions.test.mjs ← click, send_keys, get_element_text, hover, double_click, right_click, press_key, drag_and_drop, upload_file
     └── fixtures/           ← HTML files loaded via file:// URLs
         ├── locators.html
         ├── interactions.html
