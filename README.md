@@ -28,6 +28,12 @@ A Model Context Protocol (MCP) server implementation for Selenium WebDriver, ena
 - Chrome
 - Firefox
 - MS Edge
+- Safari (macOS only)
+
+> **Note:** Safari requires macOS with `safaridriver`, which is included with Safari.
+> Run `sudo safaridriver --enable` once, then enable "Allow Remote Automation"
+> in Safari → Settings → Developer. Safari does not support headless mode or
+> custom browser arguments.
 
 ## Use with Goose
 
@@ -117,7 +123,7 @@ Launches a browser session.
 **Parameters:**
 - `browser` (required): Browser to launch
   - Type: string
-  - Enum: ["chrome", "firefox"]
+  - Enum: ["chrome", "firefox", "edge", "safari"]
 - `options`: Browser configuration options
   - Type: object
   - Properties:

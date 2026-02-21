@@ -8,6 +8,7 @@ const { Builder, By, Key, until, Actions } = pkg;
 import { Options as ChromeOptions } from 'selenium-webdriver/chrome.js';
 import { Options as FirefoxOptions } from 'selenium-webdriver/firefox.js';
 import { Options as EdgeOptions } from 'selenium-webdriver/edge.js';
+import { Options as SafariOptions } from 'selenium-webdriver/safari.js';
 
 
 // Create an MCP server
@@ -60,13 +61,14 @@ server.tool(
     "start_browser",
     "launches browser",
     {
-        browser: z.enum(["chrome", "firefox", "edge"]).describe("Browser to launch (chrome or firefox or microsoft edge)"),
+        browser: z.enum(["chrome", "firefox", "edge", "safari"]).describe("Browser to launch (chrome, firefox, edge, or safari)"),
         options: browserOptionsSchema
     },
     async ({ browser, options = {} }) => {
         try {
             let builder = new Builder();
             let driver;
+            let warnings = [];
             switch (browser) {
                 case 'chrome': {
                     const chromeOptions = new ChromeOptions();
@@ -110,6 +112,20 @@ server.tool(
                         .build();
                     break;
                 }
+                case 'safari': {
+                    const safariOptions = new SafariOptions();
+                    if (options.headless) {
+                        warnings.push('Safari does not support headless mode — launching with visible window.');
+                    }
+                    if (options.arguments?.length) {
+                        warnings.push('Safari does not support custom arguments — ignoring.');
+                    }
+                    driver = await builder
+                        .forBrowser('safari')
+                        .setSafariOptions(safariOptions)
+                        .build();
+                    break;
+                }
                 default: {
                     throw new Error(`Unsupported browser: ${browser}`);
                 }
@@ -118,8 +134,13 @@ server.tool(
             state.drivers.set(sessionId, driver);
             state.currentSession = sessionId;
 
+            let message = `Browser started with session_id: ${sessionId}`;
+            if (warnings.length > 0) {
+                message += `\nWarnings: ${warnings.join(' ')}`;
+            }
+
             return {
-                content: [{ type: 'text', text: `Browser started with session_id: ${sessionId}` }]
+                content: [{ type: 'text', text: message }]
             };
         } catch (e) {
             return {
