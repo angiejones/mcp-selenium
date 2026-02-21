@@ -52,6 +52,7 @@ describe('Element Interactions', () => {
 
     it('should error when element not found', async () => {
       const result = await client.callTool('click_element', { by: 'id', value: 'nonexistent' });
+      assert.strictEqual(result.isError, true, 'Expected isError: true on error response');
       const text = getResponseText(result);
       assert.ok(text.includes('Error'), `Expected error, got: ${text}`);
     });
@@ -90,6 +91,7 @@ describe('Element Interactions', () => {
         value: 'not-an-input',
         text: 'should fail',
       });
+      assert.strictEqual(result.isError, true, 'Expected isError: true on error response');
       const text = getResponseText(result);
       assert.ok(text.includes('Error'), `Expected error sending keys to div, got: ${text}`);
     });
@@ -123,6 +125,7 @@ describe('Element Interactions', () => {
         by: 'id',
         value: 'nonexistent',
       });
+      assert.strictEqual(result.isError, true, 'Expected isError: true on error response');
       const text = getResponseText(result);
       assert.ok(text.includes('Error'), `Expected error, got: ${text}`);
     });
@@ -211,6 +214,7 @@ describe('Element Interactions', () => {
 
     it('should error on unknown key name', async () => {
       const result = await client.callTool('press_key', { key: 'FakeKey' });
+      assert.strictEqual(result.isError, true, 'Expected isError: true on error response');
       const text = getResponseText(result);
       assert.ok(text.includes('Unknown key name'), `Expected unknown key error, got: ${text}`);
     });
