@@ -44,6 +44,7 @@ describe('Navigation & Element Locators', () => {
       await freshClient.start();
       try {
         const result = await freshClient.callTool('navigate', { url: 'https://example.com' });
+        assert.strictEqual(result.isError, true, 'Expected isError: true on error response');
         const text = getResponseText(result);
         assert.ok(
           text.includes('Error') || text.includes('No active'),
@@ -154,6 +155,7 @@ describe('Navigation & Element Locators', () => {
 
     it('should error when element not found', async () => {
       const result = await client.callTool('find_element', { by: 'id', value: 'nonexistent' });
+      assert.strictEqual(result.isError, true, 'Expected isError: true on error response');
       const text = getResponseText(result);
       assert.ok(text.includes('Error'), `Expected error, got: ${text}`);
     });

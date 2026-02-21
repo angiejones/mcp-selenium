@@ -123,7 +123,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error starting browser: ${e.message}` }]
+                content: [{ type: 'text', text: `Error starting browser: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -144,7 +145,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error navigating: ${e.message}` }]
+                content: [{ type: 'text', text: `Error navigating: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -167,7 +169,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error finding element: ${e.message}` }]
+                content: [{ type: 'text', text: `Error finding element: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -190,7 +193,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error clicking element: ${e.message}` }]
+                content: [{ type: 'text', text: `Error clicking element: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -215,7 +219,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error entering text: ${e.message}` }]
+                content: [{ type: 'text', text: `Error entering text: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -238,7 +243,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error getting element text: ${e.message}` }]
+                content: [{ type: 'text', text: `Error getting element text: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -262,7 +268,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error hovering over element: ${e.message}` }]
+                content: [{ type: 'text', text: `Error hovering over element: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -290,7 +297,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error performing drag and drop: ${e.message}` }]
+                content: [{ type: 'text', text: `Error performing drag and drop: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -314,7 +322,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error performing double click: ${e.message}` }]
+                content: [{ type: 'text', text: `Error performing double click: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -338,7 +347,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error performing right click: ${e.message}` }]
+                content: [{ type: 'text', text: `Error performing right click: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -371,7 +381,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error pressing key: ${e.message}` }]
+                content: [{ type: 'text', text: `Error pressing key: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -395,7 +406,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error uploading file: ${e.message}` }]
+                content: [{ type: 'text', text: `Error uploading file: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -405,7 +417,7 @@ server.tool(
     "take_screenshot",
     "captures a screenshot of the current page",
     {
-        outputPath: z.string().optional().describe("Optional path where to save the screenshot. If not provided, returns base64 data.")
+        outputPath: z.string().optional().describe("Optional path where to save the screenshot. If not provided, returns an image/png content block.")
     },
     async ({ outputPath }) => {
         try {
@@ -420,14 +432,14 @@ server.tool(
             } else {
                 return {
                     content: [
-                        { type: 'text', text: 'Screenshot captured as base64:' },
-                        { type: 'text', text: screenshot }
+                        { type: 'image', data: screenshot, mimeType: 'image/png' }
                     ]
                 };
             }
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error taking screenshot: ${e.message}` }]
+                content: [{ type: 'text', text: `Error taking screenshot: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -449,7 +461,8 @@ server.tool(
             };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error closing session: ${e.message}` }]
+                content: [{ type: 'text', text: `Error closing session: ${e.message}` }],
+                isError: true
             };
         }
     }
@@ -462,6 +475,7 @@ server.resource(
     async (uri) => ({
         contents: [{
             uri: uri.href,
+            mimeType: "text/plain",
             text: state.currentSession
                 ? `Active browser session: ${state.currentSession}`
                 : "No active browser session"

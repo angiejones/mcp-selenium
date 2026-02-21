@@ -50,6 +50,7 @@ describe('Browser Management', () => {
 
     it('should error when no active session exists', async () => {
       const result = await client.callTool('close_session');
+      assert.strictEqual(result.isError, true, 'Expected isError: true on error response');
       const text = getResponseText(result);
       assert.ok(
         text.includes('Error') || text.includes('No active'),
@@ -71,11 +72,13 @@ describe('Browser Management', () => {
       try { await client.callTool('close_session'); } catch { /* ignore */ }
     });
 
-    it('should capture a screenshot and return base64 data', async () => {
+    it('should capture a screenshot and return base64 image content', async () => {
       const result = await client.callTool('take_screenshot');
-      assert.ok(result?.content?.length >= 2, 'Should return at least 2 content entries');
-      const base64 = result.content[1].text;
-      assert.ok(base64.length > 100, `Expected base64 data, got ${base64.length} chars`);
+      assert.ok(result?.content?.length >= 1, 'Should return at least 1 content entry');
+      const imageContent = result.content.find(c => c.type === 'image');
+      assert.ok(imageContent, 'Should contain an image content entry');
+      assert.strictEqual(imageContent.mimeType, 'image/png', 'Image mimeType should be image/png');
+      assert.ok(imageContent.data.length > 100, `Expected base64 data, got ${imageContent.data.length} chars`);
     });
   });
 

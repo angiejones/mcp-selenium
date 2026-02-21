@@ -45,3 +45,4 @@ npm-debug.log*
 geckodriver.log
 chromedriver.log
 .goose/
+.beads/
