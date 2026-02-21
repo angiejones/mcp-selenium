@@ -652,8 +652,17 @@ server.tool(
                     content: [{ type: 'text', text: `Window closed. Switched to: ${handles[0]}` }]
                 };
             }
+            // Last window closed — quit the driver and clean up the session
+            const sessionId = state.currentSession;
+            try {
+                await driver.quit();
+            } catch (quitError) {
+                console.error(`Error quitting driver for session ${sessionId}:`, quitError);
+            }
+            state.drivers.delete(sessionId);
+            state.currentSession = null;
             return {
-                content: [{ type: 'text', text: 'Last window closed' }]
+                content: [{ type: 'text', text: 'Last window closed. Session ended.' }]
             };
         } catch (e) {
             return {
@@ -667,25 +676,24 @@ server.tool(
 // Frame Management Tools
 server.tool(
     "switch_to_frame",
-    "switches focus to an iframe or frame within the page",
+    "switches focus to an iframe or frame within the page. Provide either by/value to locate by element, or index to switch by position.",
     {
-        by: z.enum(["id", "css", "xpath", "name", "tag", "class", "index"]).describe("Locator strategy or 'index' to find frame"),
-        value: z.string().describe("Value for the locator strategy, or frame index number"),
+        by: z.enum(["id", "css", "xpath", "name", "tag", "class"]).optional().describe("Locator strategy to find frame element"),
+        value: z.string().optional().describe("Value for the locator strategy"),
+        index: z.number().optional().describe("Frame index (0-based) to switch to by position"),
         timeout: z.number().optional().describe("Maximum time to wait for frame in milliseconds")
     },
-    async ({ by, value, timeout = 10000 }) => {
+    async ({ by, value, index, timeout = 10000 }) => {
         try {
             const driver = getDriver();
-            if (by === 'index') {
-                const index = parseInt(value, 10);
-                if (isNaN(index)) {
-                    throw new Error(`Invalid frame index: ${value}`);
-                }
+            if (index !== undefined) {
                 await driver.switchTo().frame(index);
-            } else {
+            } else if (by && value) {
                 const locator = getLocator(by, value);
                 const element = await driver.wait(until.elementLocated(locator), timeout);
                 await driver.switchTo().frame(element);
+            } else {
+                throw new Error('Provide either by/value to locate frame by element, or index to switch by position');
             }
             return {
                 content: [{ type: 'text', text: `Switched to frame` }]
@@ -794,7 +802,7 @@ server.tool(
 
 server.tool(
     "send_alert_text",
-    "types text into a browser prompt dialog",
+    "types text into a browser prompt dialog and accepts it",
     {
         text: z.string().describe("Text to enter into the prompt"),
         timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")

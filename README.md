@@ -505,6 +505,7 @@ Executes JavaScript in the browser and returns the result.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | script | string | Yes | JavaScript code to execute |
+| args | array | No | Arguments to pass to the script (accessible via `arguments[0]`, `arguments[1]`, etc.) |
 
 **Example:**
 ```json
@@ -512,6 +513,17 @@ Executes JavaScript in the browser and returns the result.
   "tool": "execute_script",
   "parameters": {
     "script": "return document.title;"
+  }
+}
+```
+
+**Example with arguments:**
+```json
+{
+  "tool": "execute_script",
+  "parameters": {
+    "script": "return arguments[0] + arguments[1];",
+    "args": [10, 32]
   }
 }
 ```
@@ -577,7 +589,7 @@ None required
 ```
 
 ### switch_to_frame
-Switches focus to an iframe within the page.
+Switches focus to an iframe or frame within the page. Provide either `by`/`value` to locate the frame by element, or `index` to switch by position.
 
 **Parameters:**
 | Parameter | Type | Required | Description |
@@ -585,16 +597,25 @@ Switches focus to an iframe within the page.
 | by | string | No | Locator strategy (id, css, xpath, name, tag, class) |
 | value | string | No | Value for the locator strategy |
 | index | number | No | Frame index (0-based) |
+| timeout | number | No | Max wait time in ms (default: 10000) |
 
-Provide either `by`/`value` to locate the frame by element, or `index` to switch by position. Omit all parameters to switch to the parent frame.
-
-**Example:**
+**Example (by locator):**
 ```json
 {
   "tool": "switch_to_frame",
   "parameters": {
     "by": "id",
     "value": "my-iframe"
+  }
+}
+```
+
+**Example (by index):**
+```json
+{
+  "tool": "switch_to_frame",
+  "parameters": {
+    "index": 0
   }
 }
 ```
