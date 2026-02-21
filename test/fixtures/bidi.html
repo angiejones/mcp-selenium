@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BiDi Test Page</title>
+</head>
+<body>
+    <h1>BiDi Diagnostic Test Page</h1>
+
+    <!-- Console log buttons -->
+    <button id="log-info" onclick="console.log('Hello from console')">Log Info</button>
+    <button id="log-warn" onclick="console.warn('This is a warning')">Log Warning</button>
+    <button id="log-error" onclick="console.error('This is a console error')">Log Error</button>
+
+    <!-- Error trigger buttons -->
+    <button id="throw-error" onclick="throw new Error('Intentional test error')">Throw Error</button>
+    <button id="reference-error" onclick="nonExistentFunction()">Reference Error</button>
+
+    <!-- Network trigger buttons (uses inline data URLs to avoid external dependencies) -->
+    <button id="fetch-success" onclick="fetch('data:application/json,{&quot;ok&quot;:true}').then(r => r.json()).then(d => document.getElementById('fetch-result').textContent = JSON.stringify(d))">Fetch Success</button>
+    <button id="fetch-fail" onclick="fetch('http://localhost:1/nonexistent').catch(e => document.getElementById('fetch-result').textContent = 'Error: ' + e.message)">Fetch Fail</button>
+
+    <div id="fetch-result"></div>
+    <div id="error-result"></div>
+</body>
+</html>

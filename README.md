@@ -23,6 +23,10 @@ A Model Context Protocol (MCP) server implementation for Selenium WebDriver, ena
 - Upload files
 - Support for headless mode
 - Manage browser cookies (add, get, delete)
+- **Real-time diagnostics** via WebDriver BiDi:
+  - Console log capture (info, warn, error)
+  - JavaScript error detection with stack traces
+  - Network request monitoring (successes and failures)
 
 ## Supported Browsers
 
@@ -790,6 +794,67 @@ Deletes cookies from the current browser session. Deletes a specific cookie by n
   "parameters": {}
 }
 ```
+
+### get_console_logs
+Retrieves captured browser console messages (log, warn, error, etc.). Console logs are automatically captured in the background via WebDriver BiDi when the browser supports it — no configuration needed.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| clear | boolean | No | Clear the captured logs after retrieving them (default: false) |
+
+**Example:**
+```json
+{
+  "tool": "get_console_logs",
+  "parameters": {}
+}
+```
+
+### get_page_errors
+Retrieves captured JavaScript errors and uncaught exceptions with full stack traces. Errors are automatically captured in the background via WebDriver BiDi.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| clear | boolean | No | Clear the captured errors after retrieving them (default: false) |
+
+**Example:**
+```json
+{
+  "tool": "get_page_errors",
+  "parameters": {}
+}
+```
+
+### get_network_logs
+Retrieves captured network activity including successful responses and failed requests. Network logs are automatically captured in the background via WebDriver BiDi.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| clear | boolean | No | Clear the captured logs after retrieving them (default: false) |
+
+**Example:**
+```json
+{
+  "tool": "get_network_logs",
+  "parameters": {}
+}
+```
+
+---
+
+## Diagnostics (WebDriver BiDi)
+
+The server automatically enables [WebDriver BiDi](https://w3c.github.io/webdriver-bidi/) when starting a browser session. BiDi provides real-time, passive capture of browser diagnostics — console messages, JavaScript errors, and network activity are collected in the background without any extra configuration.
+
+This is especially useful for AI agents: when something goes wrong on a page, the agent can check `get_console_logs` and `get_page_errors` to understand *why*, rather than relying solely on screenshots.
+
+- **Automatic**: BiDi is enabled by default when the browser supports it
+- **Graceful fallback**: If the browser or driver doesn't support BiDi, the session starts normally and the diagnostic tools return a helpful message
+- **No performance impact**: Logs are passively captured via event listeners — no polling or extra requests
+- **Per-session**: Each browser session has its own log buffers, cleaned up automatically on session close
 
 ## License
 
