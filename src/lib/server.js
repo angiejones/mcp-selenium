@@ -8,6 +8,7 @@ const { Builder, By, Key, until, Actions } = pkg;
 import { Options as ChromeOptions } from 'selenium-webdriver/chrome.js';
 import { Options as FirefoxOptions } from 'selenium-webdriver/firefox.js';
 import { Options as EdgeOptions } from 'selenium-webdriver/edge.js';
+import { Options as SafariOptions } from 'selenium-webdriver/safari.js';
 
 
 // Create an MCP server
@@ -60,7 +61,7 @@ server.tool(
     "start_browser",
     "launches browser",
     {
-        browser: z.enum(["chrome", "firefox", "edge"]).describe("Browser to launch (chrome or firefox or microsoft edge)"),
+        browser: z.enum(["chrome", "firefox", "edge", "safari"]).describe("Browser to launch (chrome, firefox, edge, or safari)"),
         options: browserOptionsSchema
     },
     async ({ browser, options = {} }) => {
@@ -107,6 +108,20 @@ server.tool(
                     driver = await builder
                         .forBrowser('firefox')
                         .setFirefoxOptions(firefoxOptions)
+                        .build();
+                    break;
+                }
+                case 'safari': {
+                    const safariOptions = new SafariOptions();
+                    if (options.headless) {
+                        console.error('Warning: Safari does not support headless mode. Ignoring headless option.');
+                    }
+                    if (options.arguments?.length) {
+                        console.error('Warning: Safari does not support custom arguments. Ignoring arguments option.');
+                    }
+                    driver = await builder
+                        .forBrowser('safari')
+                        .setSafariOptions(safariOptions)
                         .build();
                     break;
                 }
