@@ -25,7 +25,7 @@ describe('MCP Server', () => {
     assert.ok(tools.length > 0, 'Server should have tools registered');
   });
 
-  it('should register all 14 expected tools', async () => {
+  it('should register all 28 expected tools', async () => {
     const tools = await client.listTools();
     const names = tools.map((t) => t.name);
 
@@ -44,6 +44,20 @@ describe('MCP Server', () => {
       'upload_file',
       'take_screenshot',
       'close_session',
+      'clear_element',
+      'get_element_attribute',
+      'scroll_to_element',
+      'execute_script',
+      'switch_to_window',
+      'get_window_handles',
+      'switch_to_latest_window',
+      'close_current_window',
+      'switch_to_frame',
+      'switch_to_default_content',
+      'accept_alert',
+      'dismiss_alert',
+      'get_alert_text',
+      'send_alert_text',
     ];
 
     for (const name of expected) {
