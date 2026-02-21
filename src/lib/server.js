@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import pkg from 'selenium-webdriver';
@@ -471,7 +471,11 @@ server.tool(
 // Resources
 server.resource(
     "browser-status",
-    new ResourceTemplate("browser-status://current"),
+    "browser-status://current",
+    {
+        description: "Current browser session status",
+        mimeType: "text/plain"
+    },
     async (uri) => ({
         contents: [{
             uri: uri.href,
