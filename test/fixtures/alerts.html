@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><title>Alert Test Page</title></head>
+<body>
+    <h1>Alert Tests</h1>
+    <button id="alert-btn" onclick="alert('Hello from alert!')">Show Alert</button>
+    <button id="confirm-btn" onclick="document.getElementById('confirm-result').textContent = confirm('Do you confirm?') ? 'confirmed' : 'cancelled'">Show Confirm</button>
+    <button id="prompt-btn" onclick="var r = prompt('Enter your name:'); if(r !== null) document.getElementById('prompt-result').textContent = r;">Show Prompt</button>
+    <p id="confirm-result"></p>
+    <p id="prompt-result"></p>
+</body>
+</html>

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import pkg from 'selenium-webdriver';
@@ -468,10 +468,364 @@ server.tool(
     }
 );
 
+// Element Utility Tools
+server.tool(
+    "clear_element",
+    "clears the content of an input or textarea element",
+    {
+        ...locatorSchema
+    },
+    async ({ by, value, timeout = 10000 }) => {
+        try {
+            const driver = getDriver();
+            const locator = getLocator(by, value);
+            const element = await driver.wait(until.elementLocated(locator), timeout);
+            await element.clear();
+            return {
+                content: [{ type: 'text', text: 'Element cleared' }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error clearing element: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "get_element_attribute",
+    "gets the value of an attribute on an element",
+    {
+        ...locatorSchema,
+        attribute: z.string().describe("Name of the attribute to get (e.g., 'href', 'value', 'class')")
+    },
+    async ({ by, value, attribute, timeout = 10000 }) => {
+        try {
+            const driver = getDriver();
+            const locator = getLocator(by, value);
+            const element = await driver.wait(until.elementLocated(locator), timeout);
+            const attrValue = await element.getAttribute(attribute);
+            return {
+                content: [{ type: 'text', text: attrValue !== null ? attrValue : '' }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error getting attribute: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "scroll_to_element",
+    "scrolls the page until an element is visible",
+    {
+        ...locatorSchema
+    },
+    async ({ by, value, timeout = 10000 }) => {
+        try {
+            const driver = getDriver();
+            const locator = getLocator(by, value);
+            const element = await driver.wait(until.elementLocated(locator), timeout);
+            await driver.executeScript("arguments[0].scrollIntoView({block: 'center'});", element);
+            return {
+                content: [{ type: 'text', text: 'Scrolled to element' }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error scrolling to element: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "execute_script",
+    "executes JavaScript in the browser and returns the result",
+    {
+        script: z.string().describe("JavaScript code to execute in the browser"),
+        args: z.array(z.any()).optional().describe("Optional arguments to pass to the script (accessible via arguments[0], arguments[1], etc.)")
+    },
+    async ({ script, args = [] }) => {
+        try {
+            const driver = getDriver();
+            const result = await driver.executeScript(script, ...args);
+            const text = result === undefined || result === null
+                ? 'Script executed (no return value)'
+                : typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
+            return {
+                content: [{ type: 'text', text }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error executing script: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+// Window/Tab Management Tools
+server.tool(
+    "switch_to_window",
+    "switches to a specific browser window or tab by handle",
+    {
+        handle: z.string().describe("Window handle to switch to")
+    },
+    async ({ handle }) => {
+        try {
+            const driver = getDriver();
+            await driver.switchTo().window(handle);
+            return {
+                content: [{ type: 'text', text: `Switched to window: ${handle}` }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error switching window: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "get_window_handles",
+    "returns all window/tab handles for the current session",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            const handles = await driver.getAllWindowHandles();
+            const current = await driver.getWindowHandle();
+            return {
+                content: [{ type: 'text', text: JSON.stringify({ current, all: handles }, null, 2) }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error getting window handles: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "switch_to_latest_window",
+    "switches to the most recently opened window or tab",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            const handles = await driver.getAllWindowHandles();
+            if (handles.length === 0) {
+                throw new Error('No windows available');
+            }
+            const latest = handles[handles.length - 1];
+            await driver.switchTo().window(latest);
+            return {
+                content: [{ type: 'text', text: `Switched to latest window: ${latest}` }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error switching to latest window: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "close_current_window",
+    "closes the current window/tab and switches back to the first remaining window",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            await driver.close();
+            const handles = await driver.getAllWindowHandles();
+            if (handles.length > 0) {
+                await driver.switchTo().window(handles[0]);
+                return {
+                    content: [{ type: 'text', text: `Window closed. Switched to: ${handles[0]}` }]
+                };
+            }
+            return {
+                content: [{ type: 'text', text: 'Last window closed' }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error closing window: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+// Frame Management Tools
+server.tool(
+    "switch_to_frame",
+    "switches focus to an iframe or frame within the page",
+    {
+        by: z.enum(["id", "css", "xpath", "name", "tag", "class", "index"]).describe("Locator strategy or 'index' to find frame"),
+        value: z.string().describe("Value for the locator strategy, or frame index number"),
+        timeout: z.number().optional().describe("Maximum time to wait for frame in milliseconds")
+    },
+    async ({ by, value, timeout = 10000 }) => {
+        try {
+            const driver = getDriver();
+            if (by === 'index') {
+                const index = parseInt(value, 10);
+                if (isNaN(index)) {
+                    throw new Error(`Invalid frame index: ${value}`);
+                }
+                await driver.switchTo().frame(index);
+            } else {
+                const locator = getLocator(by, value);
+                const element = await driver.wait(until.elementLocated(locator), timeout);
+                await driver.switchTo().frame(element);
+            }
+            return {
+                content: [{ type: 'text', text: `Switched to frame` }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error switching to frame: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "switch_to_default_content",
+    "switches focus back to the main page from an iframe",
+    {},
+    async () => {
+        try {
+            const driver = getDriver();
+            await driver.switchTo().defaultContent();
+            return {
+                content: [{ type: 'text', text: 'Switched to default content' }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error switching to default content: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+// Alert/Dialog Tools
+server.tool(
+    "accept_alert",
+    "accepts (clicks OK) on a browser alert, confirm, or prompt dialog",
+    {
+        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
+    },
+    async ({ timeout = 5000 }) => {
+        try {
+            const driver = getDriver();
+            await driver.wait(until.alertIsPresent(), timeout);
+            const alert = await driver.switchTo().alert();
+            await alert.accept();
+            return {
+                content: [{ type: 'text', text: 'Alert accepted' }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error accepting alert: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "dismiss_alert",
+    "dismisses (clicks Cancel) on a browser alert, confirm, or prompt dialog",
+    {
+        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
+    },
+    async ({ timeout = 5000 }) => {
+        try {
+            const driver = getDriver();
+            await driver.wait(until.alertIsPresent(), timeout);
+            const alert = await driver.switchTo().alert();
+            await alert.dismiss();
+            return {
+                content: [{ type: 'text', text: 'Alert dismissed' }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error dismissing alert: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "get_alert_text",
+    "gets the text content of a browser alert, confirm, or prompt dialog",
+    {
+        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
+    },
+    async ({ timeout = 5000 }) => {
+        try {
+            const driver = getDriver();
+            await driver.wait(until.alertIsPresent(), timeout);
+            const alert = await driver.switchTo().alert();
+            const text = await alert.getText();
+            return {
+                content: [{ type: 'text', text }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error getting alert text: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
+server.tool(
+    "send_alert_text",
+    "types text into a browser prompt dialog",
+    {
+        text: z.string().describe("Text to enter into the prompt"),
+        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
+    },
+    async ({ text, timeout = 5000 }) => {
+        try {
+            const driver = getDriver();
+            await driver.wait(until.alertIsPresent(), timeout);
+            const alert = await driver.switchTo().alert();
+            await alert.sendKeys(text);
+            await alert.accept();
+            return {
+                content: [{ type: 'text', text: `Text "${text}" sent to prompt and accepted` }]
+            };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error sending text to alert: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
+);
+
 // Resources
 server.resource(
     "browser-status",
-    new ResourceTemplate("browser-status://current"),
+    "browser-status://current",
+    {
+        description: "Current browser session status",
+        mimeType: "text/plain"
+    },
     async (uri) => ({
         contents: [{
             uri: uri.href,
