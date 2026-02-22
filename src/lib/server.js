@@ -159,6 +159,8 @@ server.tool(
 
             // Enable BiDi websocket if the modules are available
             if (LogInspector && Network) {
+                // 'ignore' prevents BiDi from auto-dismissing alert/confirm/prompt dialogs,
+                // allowing accept_alert, dismiss_alert, and get_alert_text to work as expected.
                 builder = builder.withCapabilities({ 'webSocketUrl': true, 'unhandledPromptBehavior': 'ignore' });
             }
 
