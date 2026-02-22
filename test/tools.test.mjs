@@ -23,7 +23,7 @@ describe('new-tools', () => {
   });
 
   after(async () => {
-    try { await client.callTool('close_session'); } catch { /* ignore */ }
+    try { await client.callTool('close_session', {}); } catch { /* ignore */ }
     await client.stop();
   });
 
@@ -239,10 +239,13 @@ describe('new-tools', () => {
       assert.equal(getResponseText(acceptResult), 'Alert accepted');
     });
 
-    it('alert accept accepts a fresh alert', async () => {
+    it('alert accept accepts a fresh alert and verifies DOM effect', async () => {
       await client.callTool('interact', { action: 'click', by: 'id', value: 'alert-btn' });
       const result = await client.callTool('alert', { action: 'accept' });
       assert.equal(getResponseText(result), 'Alert accepted');
+
+      const status = await client.callTool('get_element_text', { by: 'id', value: 'alert-result' });
+      assert.equal(getResponseText(status), 'alerted');
     });
 
     it('alert dismiss cancels a confirm dialog', async () => {

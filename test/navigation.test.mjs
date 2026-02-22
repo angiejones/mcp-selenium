@@ -1,10 +1,6 @@
 /**
  * Navigation and element locator tests.
  * Verifies each locator strategy finds the correct element by checking its text.
- *
- * Previously these used find_element (removed in the consolidation refactor).
- * Now they use get_element_text directly, which does the same wait-and-find
- * internally and also returns useful data — proving the locator works.
  */
 
 import { describe, it, before, after } from 'node:test';

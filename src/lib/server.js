@@ -11,9 +11,13 @@ import { Options as EdgeOptions } from 'selenium-webdriver/edge.js';
 import { Options as SafariOptions } from 'selenium-webdriver/safari.js';
 
 // Create an MCP server
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { version } = require('../../package.json');
+
 const server = new McpServer({
     name: "MCP Selenium",
-    version: "1.0.0"
+    version
 });
 
 // BiDi imports — loaded dynamically to avoid hard failures if not available
@@ -550,7 +554,8 @@ server.tool(
                 }
                 case 'close': {
                     await driver.close();
-                    const handles = await driver.getAllWindowHandles();
+                    let handles = [];
+                    try { handles = await driver.getAllWindowHandles(); } catch (_) { /* session gone */ }
                     if (handles.length > 0) {
                         await driver.switchTo().window(handles[0]);
                         return { content: [{ type: 'text', text: `Window closed. Switched to: ${handles[0]}` }] };

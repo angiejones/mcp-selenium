@@ -77,6 +77,6 @@ Tests talk to the real MCP server over stdio. No mocking. Each test file uses **
 | `browser.test.mjs` | start_browser, close_session, take_screenshot, multi-session |
 | `navigation.test.mjs` | navigate, locator strategies (id, css, xpath, name, tag, class) |
 | `interactions.test.mjs` | interact, send_keys, get_element_text, press_key, upload_file |
-| `new-tools.test.mjs` | get_element_attribute, execute_script, window, frame, alert |
+| `tools.test.mjs` | get_element_attribute, execute_script, window, frame, alert |
 | `cookies.test.mjs` | add_cookie, get_cookies, delete_cookie |
 | `bidi.test.mjs` | diagnostics (console/errors/network), session isolation |
