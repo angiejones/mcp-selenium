@@ -4,7 +4,7 @@ MCP server for Selenium WebDriver browser automation. JavaScript (ES Modules), N
 
 ## File Map
 
-```
+```text
 src/lib/server.js      ← ALL server logic: tool definitions, state, helpers, cleanup
 src/index.js           ← Thin CLI wrapper, spawns server.js as child process
 test/mcp-client.mjs    ← Reusable MCP test client (JSON-RPC over stdio)

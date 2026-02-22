@@ -10,7 +10,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { McpClient, getResponseText, fixture } from './mcp-client.mjs';
 
-describe('new-tools', () => {
+describe('tools', () => {
   let client;
 
   before(async () => {
