@@ -3,9 +3,9 @@
 // browser contexts, so we avoid `const`/`let` for maximum compatibility.
 var ROLE_MAP = {
     A: 'link', BUTTON: 'button', INPUT: 'textbox', SELECT: 'combobox',
-    TEXTAREA: 'textbox', IMG: 'img', TABLE: 'table', THEAD: 'rowgroup',
-    TBODY: 'rowgroup', TR: 'row', TH: 'columnheader', TD: 'cell',
-    UL: 'list', OL: 'list', LI: 'listitem', NAV: 'navigation',
+    OPTION: 'option', TEXTAREA: 'textbox', IMG: 'img', TABLE: 'table',
+    THEAD: 'rowgroup', TBODY: 'rowgroup', TR: 'row', TH: 'columnheader',
+    TD: 'cell', UL: 'list', OL: 'list', LI: 'listitem', NAV: 'navigation',
     MAIN: 'main', HEADER: 'banner', FOOTER: 'contentinfo', ASIDE: 'complementary',
     FORM: 'form', SECTION: 'region', H1: 'heading', H2: 'heading',
     H3: 'heading', H4: 'heading', H5: 'heading', H6: 'heading',
@@ -22,11 +22,17 @@ var INPUT_ROLES = {
 var SKIP = { SCRIPT:1, STYLE:1, NOSCRIPT:1, TEMPLATE:1, SVG:1 };
 
 function walk(el) {
+    if (!el) return null;
     if (el.nodeType === 3) {
         var t = el.textContent.trim();
         return t ? { role: 'text', name: t.substring(0, 200) } : null;
     }
     if (el.nodeType !== 1 || SKIP[el.tagName]) return null;
+    // Note: we check the HTML hidden attribute and aria-hidden, but intentionally
+    // skip getComputedStyle checks for display:none / visibility:hidden — calling
+    // getComputedStyle on every node forces style recalculation and is too expensive
+    // for large DOMs. If you need CSS-hidden filtering, add it here at the cost of
+    // performance: var cs = window.getComputedStyle(el); if (cs.display === 'none' || cs.visibility === 'hidden') return null;
     if (el.hidden || el.getAttribute('aria-hidden') === 'true') return null;
 
     var tag = el.tagName;

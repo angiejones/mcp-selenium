@@ -13,12 +13,15 @@ describe('Resources', () => {
   before(async () => {
     client = new McpClient();
     await client.start();
-    await client.callTool('start_browser', { browser: 'chrome', options: { headless: true } });
+    await client.callTool('start_browser', {
+      browser: 'chrome',
+      options: { headless: true, arguments: ['--no-sandbox', '--disable-dev-shm-usage'] },
+    });
     await client.callTool('navigate', { url: fixture('locators.html') });
   });
 
   after(async () => {
-    await client.callTool('close_session');
+    try { await client.callTool('close_session'); } catch { /* ignore */ }
     await client.stop();
   });
 

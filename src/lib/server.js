@@ -877,6 +877,8 @@ server.registerResource(
     async (uri) => {
         try {
             const driver = state.drivers.get(state.currentSession);
+            //-32002 is not in the SDK but is noted in the MCP specification: 
+            // https://modelcontextprotocol.io/specification/2025-11-25/server/resources#error-handling
             if (!driver) throw new McpError(-32002, "No active browser session. Start a browser first.");
             const tree = await driver.executeScript(accessibilitySnapshotScript);
             return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(tree, null, 2) }] };
