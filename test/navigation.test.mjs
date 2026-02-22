@@ -1,6 +1,10 @@
 /**
  * Navigation and element locator tests.
  * Verifies each locator strategy finds the correct element by checking its text.
+ *
+ * Previously these used find_element (removed in the consolidation refactor).
+ * Now they use get_element_text directly, which does the same wait-and-find
+ * internally and also returns useful data — proving the locator works.
  */
 
 import { describe, it, before, after } from 'node:test';
@@ -56,95 +60,87 @@ describe('Navigation & Element Locators', () => {
     });
   });
 
-  describe('find_element — locator strategies', () => {
+  describe('locator strategies', () => {
     before(async () => {
       await client.callTool('navigate', { url: fixture('locators.html') });
     });
 
     it('should find element by id and verify text', async () => {
-      await client.callTool('find_element', { by: 'id', value: 'title' });
       const result = await client.callTool('get_element_text', { by: 'id', value: 'title' });
       const text = getResponseText(result);
       assert.equal(text, 'Heading One');
     });
 
     it('should find element by css and verify text', async () => {
-      await client.callTool('find_element', { by: 'css', value: '.heading' });
       const result = await client.callTool('get_element_text', { by: 'css', value: '.heading' });
       const text = getResponseText(result);
       assert.equal(text, 'Heading One');
     });
 
     it('should find element by xpath and verify text', async () => {
-      await client.callTool('find_element', { by: 'xpath', value: '//button' });
       const result = await client.callTool('get_element_text', { by: 'xpath', value: '//button' });
       const text = getResponseText(result);
       assert.equal(text, 'Click Me');
     });
 
     it('should find element by name and verify text', async () => {
-      await client.callTool('find_element', { by: 'name', value: 'intro-text' });
       const result = await client.callTool('get_element_text', { by: 'name', value: 'intro-text' });
       const text = getResponseText(result);
       assert.equal(text, 'Intro paragraph');
     });
 
     it('should find element by class and verify text', async () => {
-      await client.callTool('find_element', { by: 'class', value: 'content' });
       const result = await client.callTool('get_element_text', { by: 'class', value: 'content' });
       const text = getResponseText(result);
       assert.equal(text, 'Second paragraph');
     });
 
     it('should find nested element by css and verify text', async () => {
-      await client.callTool('find_element', { by: 'css', value: '#nested .inner' });
       const result = await client.callTool('get_element_text', { by: 'css', value: '#nested .inner' });
       const text = getResponseText(result);
       assert.equal(text, 'Nested element');
     });
   });
 
-  describe('find_element — tag locator (By.tagName)', () => {
+  describe('tag locator (By.tagName)', () => {
     before(async () => {
       await client.callTool('navigate', { url: fixture('locators.html') });
     });
 
     it('should find h1 by tag and verify text', async () => {
-      await client.callTool('find_element', { by: 'tag', value: 'h1' });
       const result = await client.callTool('get_element_text', { by: 'tag', value: 'h1' });
       const text = getResponseText(result);
       assert.equal(text, 'Heading One');
     });
 
     it('should find button by tag and verify text', async () => {
-      await client.callTool('find_element', { by: 'tag', value: 'button' });
       const result = await client.callTool('get_element_text', { by: 'tag', value: 'button' });
       const text = getResponseText(result);
       assert.equal(text, 'Click Me');
     });
 
     it('should find anchor by tag and verify text', async () => {
-      await client.callTool('find_element', { by: 'tag', value: 'a' });
       const result = await client.callTool('get_element_text', { by: 'tag', value: 'a' });
       const text = getResponseText(result);
       assert.equal(text, 'Test Link');
     });
 
-    it('should find input by tag', async () => {
-      const result = await client.callTool('find_element', { by: 'tag', value: 'input' });
+    it('should find input by tag without error', async () => {
+      // Inputs have no text content, but the locator should still work
+      const result = await client.callTool('get_element_attribute', { by: 'tag', value: 'input', attribute: 'type' });
       const text = getResponseText(result);
       assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
   });
 
-  describe('find_element — error cases', () => {
+  describe('locator error cases', () => {
     before(async () => {
       await client.callTool('navigate', { url: fixture('locators.html') });
     });
 
     it('should reject unsupported locator strategy via schema validation', async () => {
       await assert.rejects(
-        () => client.callTool('find_element', { by: 'invalid', value: 'test' }),
+        () => client.callTool('get_element_text', { by: 'invalid', value: 'test' }),
         (err) => {
           assert.ok(err.message.includes('invalid_enum_value') || err.message.includes('Invalid'),
             `Expected validation error, got: ${err.message}`);
@@ -154,7 +150,7 @@ describe('Navigation & Element Locators', () => {
     });
 
     it('should error when element not found', async () => {
-      const result = await client.callTool('find_element', { by: 'id', value: 'nonexistent' });
+      const result = await client.callTool('get_element_text', { by: 'id', value: 'nonexistent' });
       assert.strictEqual(result.isError, true, 'Expected isError: true on error response');
       const text = getResponseText(result);
       assert.ok(text.includes('Error'), `Expected error, got: ${text}`);

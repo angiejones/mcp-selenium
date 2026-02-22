@@ -10,6 +10,12 @@ import { Options as FirefoxOptions } from 'selenium-webdriver/firefox.js';
 import { Options as EdgeOptions } from 'selenium-webdriver/edge.js';
 import { Options as SafariOptions } from 'selenium-webdriver/safari.js';
 
+// Create an MCP server
+const server = new McpServer({
+    name: "MCP Selenium",
+    version: "1.0.0"
+});
+
 // BiDi imports — loaded dynamically to avoid hard failures if not available
 let LogInspector, Network;
 try {
@@ -21,13 +27,6 @@ try {
     LogInspector = null;
     Network = null;
 }
-
-
-// Create an MCP server
-const server = new McpServer({
-    name: "MCP Selenium",
-    version: "1.0.0"
-});
 
 // Server state
 const state = {
@@ -108,29 +107,6 @@ async function setupBidi(driver, sessionId) {
     state.bidi.set(sessionId, bidi);
 }
 
-function registerBidiTool(name, description, logKey, emptyMessage, unavailableMessage) {
-    server.tool(
-        name,
-        description,
-        { clear: z.boolean().optional().describe("Clear after returning (default: false)") },
-        async ({ clear = false }) => {
-            try {
-                getDriver();
-                const bidi = state.bidi.get(state.currentSession);
-                if (!bidi?.available) {
-                    return { content: [{ type: 'text', text: unavailableMessage }] };
-                }
-                const logs = bidi[logKey];
-                const result = logs.length === 0 ? emptyMessage : JSON.stringify(logs, null, 2);
-                if (clear) bidi[logKey] = [];
-                return { content: [{ type: 'text', text: result }] };
-            } catch (e) {
-                return { content: [{ type: 'text', text: `Error: ${e.message}` }], isError: true };
-            }
-        }
-    );
-}
-
 // Common schemas
 const browserOptionsSchema = z.object({
     headless: z.boolean().optional().describe("Run browser in headless mode"),
@@ -160,7 +136,7 @@ server.tool(
             // Enable BiDi websocket if the modules are available
             if (LogInspector && Network) {
                 // 'ignore' prevents BiDi from auto-dismissing alert/confirm/prompt dialogs,
-                // allowing accept_alert, dismiss_alert, and get_alert_text to work as expected.
+                // allowing the alert tool's accept, dismiss, and get_text actions to work as expected.
                 builder = builder.withCapabilities({ 'webSocketUrl': true, 'unhandledPromptBehavior': 'ignore' });
             }
 
@@ -282,46 +258,43 @@ server.tool(
 
 // Element Interaction Tools
 server.tool(
-    "find_element",
-    "finds an element",
+    "interact",
+    "performs a mouse action on an element",
     {
+        action: z.enum(["click", "doubleclick", "rightclick", "hover"]).describe("Mouse action to perform"),
         ...locatorSchema
     },
-    async ({ by, value, timeout = 10000 }) => {
-        try {
-            const driver = getDriver();
-            const locator = getLocator(by, value);
-            await driver.wait(until.elementLocated(locator), timeout);
-            return {
-                content: [{ type: 'text', text: 'Element found' }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error finding element: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
-    "click_element",
-    "clicks an element",
-    {
-        ...locatorSchema
-    },
-    async ({ by, value, timeout = 10000 }) => {
+    async ({ action, by, value, timeout = 10000 }) => {
         try {
             const driver = getDriver();
             const locator = getLocator(by, value);
             const element = await driver.wait(until.elementLocated(locator), timeout);
-            await element.click();
-            return {
-                content: [{ type: 'text', text: 'Element clicked' }]
-            };
+
+            switch (action) {
+                case 'click':
+                    await element.click();
+                    return { content: [{ type: 'text', text: 'Element clicked' }] };
+                case 'doubleclick': {
+                    const dblActions = driver.actions({ bridge: true });
+                    await dblActions.doubleClick(element).perform();
+                    return { content: [{ type: 'text', text: 'Double click performed' }] };
+                }
+                case 'rightclick': {
+                    const ctxActions = driver.actions({ bridge: true });
+                    await ctxActions.contextClick(element).perform();
+                    return { content: [{ type: 'text', text: 'Right click performed' }] };
+                }
+                case 'hover': {
+                    const hoverActions = driver.actions({ bridge: true });
+                    await hoverActions.move({ origin: element }).perform();
+                    return { content: [{ type: 'text', text: 'Hovered over element' }] };
+                }
+                default:
+                    return { content: [{ type: 'text', text: `Unknown action: ${action}` }], isError: true };
+            }
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error clicking element: ${e.message}` }],
+                content: [{ type: 'text', text: `Error performing ${action}: ${e.message}` }],
                 isError: true
             };
         }
@@ -330,7 +303,7 @@ server.tool(
 
 server.tool(
     "send_keys",
-    "sends keys to an element, aka typing",
+    "sends keys to an element, aka typing. Clears the field first.",
     {
         ...locatorSchema,
         text: z.string().describe("Text to enter into the element")
@@ -356,7 +329,7 @@ server.tool(
 
 server.tool(
     "get_element_text",
-    "gets the text() of an element",
+    "gets the text content of an element",
     {
         ...locatorSchema
     },
@@ -379,110 +352,6 @@ server.tool(
 );
 
 server.tool(
-    "hover",
-    "moves the mouse to hover over an element",
-    {
-        ...locatorSchema
-    },
-    async ({ by, value, timeout = 10000 }) => {
-        try {
-            const driver = getDriver();
-            const locator = getLocator(by, value);
-            const element = await driver.wait(until.elementLocated(locator), timeout);
-            const actions = driver.actions({ bridge: true });
-            await actions.move({ origin: element }).perform();
-            return {
-                content: [{ type: 'text', text: 'Hovered over element' }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error hovering over element: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
-    "drag_and_drop",
-    "drags an element and drops it onto another element",
-    {
-        ...locatorSchema,
-        targetBy: z.enum(["id", "css", "xpath", "name", "tag", "class"]).describe("Locator strategy to find target element"),
-        targetValue: z.string().describe("Value for the target locator strategy")
-    },
-    async ({ by, value, targetBy, targetValue, timeout = 10000 }) => {
-        try {
-            const driver = getDriver();
-            const sourceLocator = getLocator(by, value);
-            const targetLocator = getLocator(targetBy, targetValue);
-            const sourceElement = await driver.wait(until.elementLocated(sourceLocator), timeout);
-            const targetElement = await driver.wait(until.elementLocated(targetLocator), timeout);
-            const actions = driver.actions({ bridge: true });
-            await actions.dragAndDrop(sourceElement, targetElement).perform();
-            return {
-                content: [{ type: 'text', text: 'Drag and drop completed' }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error performing drag and drop: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
-    "double_click",
-    "performs a double click on an element",
-    {
-        ...locatorSchema
-    },
-    async ({ by, value, timeout = 10000 }) => {
-        try {
-            const driver = getDriver();
-            const locator = getLocator(by, value);
-            const element = await driver.wait(until.elementLocated(locator), timeout);
-            const actions = driver.actions({ bridge: true });
-            await actions.doubleClick(element).perform();
-            return {
-                content: [{ type: 'text', text: 'Double click performed' }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error performing double click: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
-    "right_click",
-    "performs a right click (context click) on an element",
-    {
-        ...locatorSchema
-    },
-    async ({ by, value, timeout = 10000 }) => {
-        try {
-            const driver = getDriver();
-            const locator = getLocator(by, value);
-            const element = await driver.wait(until.elementLocated(locator), timeout);
-            const actions = driver.actions({ bridge: true });
-            await actions.contextClick(element).perform();
-            return {
-                content: [{ type: 'text', text: 'Right click performed' }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error performing right click: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
     "press_key",
     "simulates pressing a keyboard key",
     {
@@ -491,8 +360,6 @@ server.tool(
     async ({ key }) => {
         try {
             const driver = getDriver();
-            // Map named keys to Selenium Key constants (case-insensitive).
-            // Single characters are passed through as-is.
             const resolvedKey = key.length === 1
                 ? key
                 : Key[key.toUpperCase().replace(/ /g, '_')] ?? null;
@@ -602,30 +469,6 @@ server.tool(
 
 // Element Utility Tools
 server.tool(
-    "clear_element",
-    "clears the content of an input or textarea element",
-    {
-        ...locatorSchema
-    },
-    async ({ by, value, timeout = 10000 }) => {
-        try {
-            const driver = getDriver();
-            const locator = getLocator(by, value);
-            const element = await driver.wait(until.elementLocated(locator), timeout);
-            await element.clear();
-            return {
-                content: [{ type: 'text', text: 'Element cleared' }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error clearing element: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
     "get_element_attribute",
     "gets the value of an attribute on an element",
     {
@@ -651,32 +494,8 @@ server.tool(
 );
 
 server.tool(
-    "scroll_to_element",
-    "scrolls the page until an element is visible",
-    {
-        ...locatorSchema
-    },
-    async ({ by, value, timeout = 10000 }) => {
-        try {
-            const driver = getDriver();
-            const locator = getLocator(by, value);
-            const element = await driver.wait(until.elementLocated(locator), timeout);
-            await driver.executeScript("arguments[0].scrollIntoView({block: 'center'});", element);
-            return {
-                content: [{ type: 'text', text: 'Scrolled to element' }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error scrolling to element: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
     "execute_script",
-    "executes JavaScript in the browser and returns the result",
+    "executes JavaScript in the browser and returns the result. Use for advanced interactions not covered by other tools (e.g., drag and drop, scrolling, reading computed styles, manipulating the DOM directly).",
     {
         script: z.string().describe("JavaScript code to execute in the browser"),
         args: z.array(z.any()).optional().describe("Optional arguments to pass to the script (accessible via arguments[0], arguments[1], etc.)")
@@ -700,125 +519,80 @@ server.tool(
     }
 );
 
-// Window/Tab Management Tools
+// Window/Tab Management
 server.tool(
-    "switch_to_window",
-    "switches to a specific browser window or tab by handle",
+    "window",
+    "manages browser windows and tabs",
     {
-        handle: z.string().describe("Window handle to switch to")
+        action: z.enum(["list", "switch", "switch_latest", "close"]).describe("Window action to perform"),
+        handle: z.string().optional().describe("Window handle (required for switch)")
     },
-    async ({ handle }) => {
+    async ({ action, handle }) => {
         try {
             const driver = getDriver();
-            await driver.switchTo().window(handle);
-            return {
-                content: [{ type: 'text', text: `Switched to window: ${handle}` }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error switching window: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
-    "get_window_handles",
-    "returns all window/tab handles for the current session",
-    {},
-    async () => {
-        try {
-            const driver = getDriver();
-            const handles = await driver.getAllWindowHandles();
-            const current = await driver.getWindowHandle();
-            return {
-                content: [{ type: 'text', text: JSON.stringify({ current, all: handles }, null, 2) }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error getting window handles: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
-    "switch_to_latest_window",
-    "switches to the most recently opened window or tab",
-    {},
-    async () => {
-        try {
-            const driver = getDriver();
-            const handles = await driver.getAllWindowHandles();
-            if (handles.length === 0) {
-                throw new Error('No windows available');
+            switch (action) {
+                case 'list': {
+                    const handles = await driver.getAllWindowHandles();
+                    const current = await driver.getWindowHandle();
+                    return { content: [{ type: 'text', text: JSON.stringify({ current, all: handles }, null, 2) }] };
+                }
+                case 'switch': {
+                    if (!handle) throw new Error('handle is required for switch action');
+                    await driver.switchTo().window(handle);
+                    return { content: [{ type: 'text', text: `Switched to window: ${handle}` }] };
+                }
+                case 'switch_latest': {
+                    const handles = await driver.getAllWindowHandles();
+                    if (handles.length === 0) throw new Error('No windows available');
+                    const latest = handles[handles.length - 1];
+                    await driver.switchTo().window(latest);
+                    return { content: [{ type: 'text', text: `Switched to latest window: ${latest}` }] };
+                }
+                case 'close': {
+                    await driver.close();
+                    const handles = await driver.getAllWindowHandles();
+                    if (handles.length > 0) {
+                        await driver.switchTo().window(handles[0]);
+                        return { content: [{ type: 'text', text: `Window closed. Switched to: ${handles[0]}` }] };
+                    }
+                    const sessionId = state.currentSession;
+                    try { await driver.quit(); } catch (_) { /* ignore */ }
+                    state.drivers.delete(sessionId);
+                    state.bidi.delete(sessionId);
+                    state.currentSession = null;
+                    return { content: [{ type: 'text', text: 'Last window closed. Session ended.' }] };
+                }
+                default:
+                    return { content: [{ type: 'text', text: `Unknown action: ${action}` }], isError: true };
             }
-            const latest = handles[handles.length - 1];
-            await driver.switchTo().window(latest);
-            return {
-                content: [{ type: 'text', text: `Switched to latest window: ${latest}` }]
-            };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error switching to latest window: ${e.message}` }],
+                content: [{ type: 'text', text: `Error in window ${action}: ${e.message}` }],
                 isError: true
             };
         }
     }
 );
 
+// Frame Management
 server.tool(
-    "close_current_window",
-    "closes the current window/tab and switches back to the first remaining window",
-    {},
-    async () => {
-        try {
-            const driver = getDriver();
-            await driver.close();
-            const handles = await driver.getAllWindowHandles();
-            if (handles.length > 0) {
-                await driver.switchTo().window(handles[0]);
-                return {
-                    content: [{ type: 'text', text: `Window closed. Switched to: ${handles[0]}` }]
-                };
-            }
-            // Last window closed — quit the driver and clean up the session
-            const sessionId = state.currentSession;
-            try {
-                await driver.quit();
-            } catch (quitError) {
-                console.error(`Error quitting driver for session ${sessionId}:`, quitError);
-            }
-            state.drivers.delete(sessionId);
-            state.bidi.delete(sessionId);
-            state.currentSession = null;
-            return {
-                content: [{ type: 'text', text: 'Last window closed. Session ended.' }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error closing window: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-// Frame Management Tools
-server.tool(
-    "switch_to_frame",
-    "switches focus to an iframe or frame within the page. Provide either by/value to locate by element, or index to switch by position.",
+    "frame",
+    "switches focus to a frame or back to the main page",
     {
-        by: z.enum(["id", "css", "xpath", "name", "tag", "class"]).optional().describe("Locator strategy to find frame element"),
+        action: z.enum(["switch", "default"]).describe("Frame action to perform"),
+        by: z.enum(["id", "css", "xpath", "name", "tag", "class"]).optional().describe("Locator strategy for frame element"),
         value: z.string().optional().describe("Value for the locator strategy"),
-        index: z.number().optional().describe("Frame index (0-based) to switch to by position"),
-        timeout: z.number().optional().describe("Maximum time to wait for frame in milliseconds")
+        index: z.number().optional().describe("Frame index (0-based)"),
+        timeout: z.number().optional().describe("Max wait in ms")
     },
-    async ({ by, value, index, timeout = 10000 }) => {
+    async ({ action, by, value, index, timeout = 10000 }) => {
         try {
             const driver = getDriver();
+            if (action === 'default') {
+                await driver.switchTo().defaultContent();
+                return { content: [{ type: 'text', text: 'Switched to default content' }] };
+            }
+            // action === 'switch'
             if (index !== undefined) {
                 await driver.switchTo().frame(index);
             } else if (by && value) {
@@ -826,133 +600,55 @@ server.tool(
                 const element = await driver.wait(until.elementLocated(locator), timeout);
                 await driver.switchTo().frame(element);
             } else {
-                throw new Error('Provide either by/value to locate frame by element, or index to switch by position');
+                throw new Error('Provide either by/value to locate frame, or index to switch by position');
             }
-            return {
-                content: [{ type: 'text', text: `Switched to frame` }]
-            };
+            return { content: [{ type: 'text', text: 'Switched to frame' }] };
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error switching to frame: ${e.message}` }],
+                content: [{ type: 'text', text: `Error in frame ${action}: ${e.message}` }],
                 isError: true
             };
         }
     }
 );
 
+// Alert/Dialog Handling
 server.tool(
-    "switch_to_default_content",
-    "switches focus back to the main page from an iframe",
-    {},
-    async () => {
-        try {
-            const driver = getDriver();
-            await driver.switchTo().defaultContent();
-            return {
-                content: [{ type: 'text', text: 'Switched to default content' }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error switching to default content: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-// Alert/Dialog Tools
-server.tool(
-    "accept_alert",
-    "accepts (clicks OK) on a browser alert, confirm, or prompt dialog",
+    "alert",
+    "handles a browser alert, confirm, or prompt dialog",
     {
-        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
+        action: z.enum(["accept", "dismiss", "get_text", "send_text"]).describe("Action to perform on the alert"),
+        text: z.string().optional().describe("Text to send (required for send_text)"),
+        timeout: z.number().optional().describe("Max wait in ms")
     },
-    async ({ timeout = 5000 }) => {
+    async ({ action, text, timeout = 5000 }) => {
         try {
             const driver = getDriver();
             await driver.wait(until.alertIsPresent(), timeout);
-            const alert = await driver.switchTo().alert();
-            await alert.accept();
-            return {
-                content: [{ type: 'text', text: 'Alert accepted' }]
-            };
+            const alertObj = await driver.switchTo().alert();
+            switch (action) {
+                case 'accept':
+                    await alertObj.accept();
+                    return { content: [{ type: 'text', text: 'Alert accepted' }] };
+                case 'dismiss':
+                    await alertObj.dismiss();
+                    return { content: [{ type: 'text', text: 'Alert dismissed' }] };
+                case 'get_text': {
+                    const alertText = await alertObj.getText();
+                    return { content: [{ type: 'text', text: alertText }] };
+                }
+                case 'send_text': {
+                    if (text === undefined) throw new Error('text is required for send_text action');
+                    await alertObj.sendKeys(text);
+                    await alertObj.accept();
+                    return { content: [{ type: 'text', text: `Text "${text}" sent to prompt and accepted` }] };
+                }
+                default:
+                    return { content: [{ type: 'text', text: `Unknown action: ${action}` }], isError: true };
+            }
         } catch (e) {
             return {
-                content: [{ type: 'text', text: `Error accepting alert: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
-    "dismiss_alert",
-    "dismisses (clicks Cancel) on a browser alert, confirm, or prompt dialog",
-    {
-        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
-    },
-    async ({ timeout = 5000 }) => {
-        try {
-            const driver = getDriver();
-            await driver.wait(until.alertIsPresent(), timeout);
-            const alert = await driver.switchTo().alert();
-            await alert.dismiss();
-            return {
-                content: [{ type: 'text', text: 'Alert dismissed' }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error dismissing alert: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
-    "get_alert_text",
-    "gets the text content of a browser alert, confirm, or prompt dialog",
-    {
-        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
-    },
-    async ({ timeout = 5000 }) => {
-        try {
-            const driver = getDriver();
-            await driver.wait(until.alertIsPresent(), timeout);
-            const alert = await driver.switchTo().alert();
-            const text = await alert.getText();
-            return {
-                content: [{ type: 'text', text }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error getting alert text: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
-);
-
-server.tool(
-    "send_alert_text",
-    "types text into a browser prompt dialog and accepts it",
-    {
-        text: z.string().describe("Text to enter into the prompt"),
-        timeout: z.number().optional().describe("Maximum time to wait for alert in milliseconds")
-    },
-    async ({ text, timeout = 5000 }) => {
-        try {
-            const driver = getDriver();
-            await driver.wait(until.alertIsPresent(), timeout);
-            const alert = await driver.switchTo().alert();
-            await alert.sendKeys(text);
-            await alert.accept();
-            return {
-                content: [{ type: 'text', text: `Text "${text}" sent to prompt and accepted` }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error sending text to alert: ${e.message}` }],
+                content: [{ type: 'text', text: `Error in alert ${action}: ${e.message}` }],
                 isError: true
             };
         }
@@ -1070,28 +766,38 @@ server.tool(
 );
 
 // BiDi Diagnostic Tools
-registerBidiTool(
-    'get_console_logs',
-    'returns browser console messages (log, warn, info, debug) captured via WebDriver BiDi. Useful for debugging page behavior, seeing application output, and catching warnings.',
-    'consoleLogs',
-    'No console logs captured',
-    'Console log capture is not available (BiDi not supported by this browser/driver)'
-);
+const diagnosticTypes = {
+    console:  { logKey: 'consoleLogs', emptyMessage: 'No console logs captured' },
+    errors:   { logKey: 'pageErrors',  emptyMessage: 'No page errors captured' },
+    network:  { logKey: 'networkLogs', emptyMessage: 'No network activity captured' }
+};
 
-registerBidiTool(
-    'get_page_errors',
-    'returns JavaScript errors and exceptions captured via WebDriver BiDi. Includes stack traces when available. Essential for diagnosing why a page is broken or a feature isn\'t working.',
-    'pageErrors',
-    'No page errors captured',
-    'Page error capture is not available (BiDi not supported by this browser/driver)'
-);
-
-registerBidiTool(
-    'get_network_logs',
-    'returns network activity (completed responses and failed requests) captured via WebDriver BiDi. Shows HTTP status codes, URLs, methods, and error details. Useful for diagnosing failed API calls and broken resources.',
-    'networkLogs',
-    'No network activity captured',
-    'Network log capture is not available (BiDi not supported by this browser/driver)'
+server.tool(
+    "diagnostics",
+    "retrieves browser diagnostics (console logs, JS errors, or network activity) captured via WebDriver BiDi",
+    {
+        type: z.enum(["console", "errors", "network"]).describe("Type of diagnostic data to retrieve"),
+        clear: z.boolean().optional().describe("Clear after returning (default: false)")
+    },
+    async ({ type, clear = false }) => {
+        try {
+            getDriver();
+            const bidi = state.bidi.get(state.currentSession);
+            if (!bidi?.available) {
+                return { content: [{ type: 'text', text: 'Diagnostics not available (BiDi not supported by this browser/driver)' }] };
+            }
+            const { logKey, emptyMessage } = diagnosticTypes[type];
+            const logs = bidi[logKey];
+            const result = logs.length === 0 ? emptyMessage : JSON.stringify(logs, null, 2);
+            if (clear) bidi[logKey] = [];
+            return { content: [{ type: 'text', text: result }] };
+        } catch (e) {
+            return {
+                content: [{ type: 'text', text: `Error getting diagnostics: ${e.message}` }],
+                isError: true
+            };
+        }
+    }
 );
 
 // Resources

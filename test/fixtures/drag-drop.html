@@ -17,5 +17,28 @@
 <body>
   <div id="draggable" draggable="true">Drag me</div>
   <div id="droppable">Drop here</div>
+  <div id="result"></div>
+
+  <script>
+    const draggable = document.getElementById('draggable');
+    const droppable = document.getElementById('droppable');
+    const result = document.getElementById('result');
+
+    draggable.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', 'dragged');
+    });
+
+    droppable.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+
+    droppable.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const data = e.dataTransfer.getData('text/plain');
+      if (data === 'dragged') {
+        result.textContent = 'dropped';
+      }
+    });
+  </script>
 </body>
 </html>

@@ -1,62 +1,43 @@
 # MCP Selenium Server
 
-A Model Context Protocol (MCP) server implementation for Selenium WebDriver, enabling browser automation through standardized MCP clients.
+A Model Context Protocol (MCP) server for Selenium WebDriver — browser automation for AI agents.
+
+[![Watch the video](https://img.youtube.com/vi/mRV0N8hcgYA/sddefault.jpg)](https://youtu.be/mRV0N8hcgYA)
 
 <a href="https://glama.ai/mcp/servers/@angiejones/mcp-selenium">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@angiejones/mcp-selenium/badge" alt="Selenium MCP server" />
 </a>
 
-## Video Demo (Click to Watch)
+## Setup
 
-[![Watch the video](https://img.youtube.com/vi/mRV0N8hcgYA/sddefault.jpg)](https://youtu.be/mRV0N8hcgYA)
+<details open>
+<summary><strong>Goose (Desktop)</strong></summary>
 
-
-## Features
-
-- Start browser sessions with customizable options
-- Navigate to URLs
-- Find elements using various locator strategies
-- Click, type, and interact with elements
-- Perform mouse actions (hover, drag and drop)
-- Handle keyboard input
-- Take screenshots
-- Upload files
-- Support for headless mode
-- Manage browser cookies (add, get, delete)
-- **Real-time diagnostics** via WebDriver BiDi:
-  - Console log capture (info, warn, error)
-  - JavaScript error detection with stack traces
-  - Network request monitoring (successes and failures)
-
-## Supported Browsers
-
-- Chrome
-- Firefox
-- MS Edge
-- Safari (macOS only)
-
-> **Note:** Safari requires macOS with `safaridriver`, which is included with Safari.
-> Run `sudo safaridriver --enable` once, then enable "Allow Remote Automation"
-> in Safari → Settings → Developer. Safari does not support headless mode or
-> custom browser arguments.
-
-## Use with Goose
-
-### Option 1: One-click install
-Copy and paste the link below into a browser address bar to add this extension to goose desktop:
-
+Paste into your browser address bar:
 ```
 goose://extension?cmd=npx&arg=-y&arg=%40angiejones%2Fmcp-selenium&id=selenium-mcp&name=Selenium%20MCP&description=automates%20browser%20interactions
 ```
+</details>
 
+<details>
+<summary><strong>Goose (CLI)</strong></summary>
 
-### Option 2: Add manually to desktop or CLI
+```bash
+goose session --with-extension "npx -y @angiejones/mcp-selenium"
+```
+</details>
 
-* Name: `Selenium MCP`
-* Description: `automates browser interactions`
-* Command: `npx -y @angiejones/mcp-selenium`
+<details>
+<summary><strong>Claude Code</strong></summary>
 
-## Use with other MCP clients (e.g. Claude Code, Cursor, etc)
+```bash
+claude mcp add selenium -- npx -y @angiejones/mcp-selenium
+```
+</details>
+
+<details>
+<summary><strong>Cursor / Windsurf / other MCP clients</strong></summary>
+
 ```json
 {
   "mcpServers": {
@@ -67,781 +48,217 @@ goose://extension?cmd=npx&arg=-y&arg=%40angiejones%2Fmcp-selenium&id=selenium-mc
   }
 }
 ```
+</details>
+
+## Example Usage
+
+Tell the AI agent of your choice:
+
+> Open Chrome, go to github.com/angiejones, and take a screenshot.
+
+The agent will call Selenium's APIs to `start_browser`, `navigate`, and `take_screenshot`. No manual scripting or explicit directions needed.
+
+## Supported Browsers
+
+Chrome, Firefox, Edge, and Safari.
+
+> **Safari note:** Requires macOS. Run `sudo safaridriver --enable` once and enable
+> "Allow Remote Automation" in Safari → Settings → Developer. No headless mode.
 
 ---
 
-## Development
-
-To work on this project:
-
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Run the server: `npm start`
-
-### Installation
-
-#### Installing via Smithery
-
-To install MCP Selenium for Claude automatically via [Smithery](https://smithery.ai/server/@angiejones/mcp-selenium):
-
-```bash
-npx -y @smithery/cli install @angiejones/mcp-selenium --client claude
-```
-
-#### Manual Installation
-```bash
-npm install -g @angiejones/mcp-selenium
-```
-
-
-### Usage
-
-Start the server by running:
-
-```bash
-mcp-selenium
-```
-
-Or use with NPX in your MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "selenium": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@angiejones/mcp-selenium"
-      ]
-    }
-  }
-}
-```
-
-
-
-## Tools
+<details>
+<summary><strong>Tools</strong></summary>
 
 ### start_browser
 Launches a browser session.
 
-**Parameters:**
-- `browser` (required): Browser to launch
-  - Type: string
-  - Enum: ["chrome", "firefox", "edge", "safari"]
-- `options`: Browser configuration options
-  - Type: object
-  - Properties:
-    - `headless`: Run browser in headless mode
-      - Type: boolean
-    - `arguments`: Additional browser arguments
-      - Type: array of strings
-
-**Example:**
-```json
-{
-  "tool": "start_browser",
-  "parameters": {
-    "browser": "chrome",
-    "options": {
-      "headless": true,
-      "arguments": ["--no-sandbox"]
-    }
-  }
-}
-```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| browser | string | Yes | `chrome`, `firefox`, `edge`, or `safari` |
+| options | object | No | `{ headless: boolean, arguments: string[] }` |
 
 ### navigate
 Navigates to a URL.
 
-**Parameters:**
-- `url` (required): URL to navigate to
-  - Type: string
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| url | string | Yes | URL to navigate to |
 
-**Example:**
-```json
-{
-  "tool": "navigate",
-  "parameters": {
-    "url": "https://www.example.com"
-  }
-}
-```
+### interact
+Performs a mouse action on an element.
 
-### find_element
-Finds an element on the page.
-
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "find_element",
-  "parameters": {
-    "by": "id",
-    "value": "search-input",
-    "timeout": 5000
-  }
-}
-```
-
-### click_element
-Clicks an element.
-
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "click_element",
-  "parameters": {
-    "by": "css",
-    "value": ".submit-button"
-  }
-}
-```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| action | string | Yes | `click`, `doubleclick`, `rightclick`, or `hover` |
+| by | string | Yes | Locator strategy: `id`, `css`, `xpath`, `name`, `tag`, `class` |
+| value | string | Yes | Value for the locator strategy |
+| timeout | number | No | Max wait in ms (default: 10000) |
 
 ### send_keys
-Sends keys to an element (typing).
+Types text into an element. Clears the field first.
 
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `text` (required): Text to enter into the element
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "send_keys",
-  "parameters": {
-    "by": "name",
-    "value": "username",
-    "text": "testuser"
-  }
-}
-```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| by | string | Yes | Locator strategy |
+| value | string | Yes | Locator value |
+| text | string | Yes | Text to enter |
+| timeout | number | No | Max wait in ms (default: 10000) |
 
 ### get_element_text
-Gets the text() of an element.
+Gets the text content of an element.
 
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| by | string | Yes | Locator strategy |
+| value | string | Yes | Locator value |
+| timeout | number | No | Max wait in ms (default: 10000) |
 
-**Example:**
-```json
-{
-  "tool": "get_element_text",
-  "parameters": {
-    "by": "css",
-    "value": ".message"
-  }
-}
-```
+### get_element_attribute
+Gets an attribute value from an element.
 
-### hover
-Moves the mouse to hover over an element.
-
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "hover",
-  "parameters": {
-    "by": "css",
-    "value": ".dropdown-menu"
-  }
-}
-```
-
-### drag_and_drop
-Drags an element and drops it onto another element.
-
-**Parameters:**
-- `by` (required): Locator strategy for source element
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the source locator strategy
-  - Type: string
-- `targetBy` (required): Locator strategy for target element
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `targetValue` (required): Value for the target locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for elements in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "drag_and_drop",
-  "parameters": {
-    "by": "id",
-    "value": "draggable",
-    "targetBy": "id",
-    "targetValue": "droppable"
-  }
-}
-```
-
-### double_click
-Performs a double click on an element.
-
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "double_click",
-  "parameters": {
-    "by": "css",
-    "value": ".editable-text"
-  }
-}
-```
-
-### right_click
-Performs a right click (context click) on an element.
-
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "right_click",
-  "parameters": {
-    "by": "css",
-    "value": ".context-menu-trigger"
-  }
-}
-```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| by | string | Yes | Locator strategy |
+| value | string | Yes | Locator value |
+| attribute | string | Yes | Attribute name (e.g., `href`, `value`, `class`) |
+| timeout | number | No | Max wait in ms (default: 10000) |
 
 ### press_key
-Simulates pressing a keyboard key.
+Presses a keyboard key.
 
-**Parameters:**
-- `key` (required): Key to press (e.g., 'Enter', 'Tab', 'a', etc.)
-  - Type: string
-
-**Example:**
-```json
-{
-  "tool": "press_key",
-  "parameters": {
-    "key": "Enter"
-  }
-}
-```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| key | string | Yes | Key to press (e.g., `Enter`, `Tab`, `a`) |
 
 ### upload_file
-Uploads a file using a file input element.
+Uploads a file via a file input element.
 
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `filePath` (required): Absolute path to the file to upload
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "upload_file",
-  "parameters": {
-    "by": "id",
-    "value": "file-input",
-    "filePath": "/path/to/file.pdf"
-  }
-}
-```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| by | string | Yes | Locator strategy |
+| value | string | Yes | Locator value |
+| filePath | string | Yes | Absolute path to the file |
+| timeout | number | No | Max wait in ms (default: 10000) |
 
 ### take_screenshot
 Captures a screenshot of the current page.
 
-**Parameters:**
-- `outputPath` (optional): Path where to save the screenshot. If not provided, returns base64 data.
-  - Type: string
-
-**Example:**
-```json
-{
-  "tool": "take_screenshot",
-  "parameters": {
-    "outputPath": "/path/to/screenshot.png"
-  }
-}
-```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| outputPath | string | No | Save path. If omitted, returns base64 image data. |
 
 ### close_session
-Closes the current browser session and cleans up resources.
-
-**Parameters:**
-None required
-
-**Example:**
-```json
-{
-  "tool": "close_session",
-  "parameters": {}
-}
-```
-
-
-### clear_element
-Clears the content of an input or textarea element.
-
-**Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| by | string | Yes | Locator strategy (id, css, xpath, name, tag, class) |
-| value | string | Yes | Value for the locator strategy |
-
-**Example:**
-```json
-{
-  "tool": "clear_element",
-  "parameters": {
-    "by": "id",
-    "value": "search-input"
-  }
-}
-```
-
-### get_element_attribute
-Gets the value of an attribute from an element.
-
-**Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| by | string | Yes | Locator strategy (id, css, xpath, name, tag, class) |
-| value | string | Yes | Value for the locator strategy |
-| attribute | string | Yes | Name of the attribute to retrieve |
-
-**Example:**
-```json
-{
-  "tool": "get_element_attribute",
-  "parameters": {
-    "by": "id",
-    "value": "my-link",
-    "attribute": "href"
-  }
-}
-```
-
-### scroll_to_element
-Scrolls the page to make an element visible.
-
-**Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| by | string | Yes | Locator strategy (id, css, xpath, name, tag, class) |
-| value | string | Yes | Value for the locator strategy |
-
-**Example:**
-```json
-{
-  "tool": "scroll_to_element",
-  "parameters": {
-    "by": "id",
-    "value": "footer"
-  }
-}
-```
+Closes the current browser session. No parameters.
 
 ### execute_script
-Executes JavaScript in the browser and returns the result.
+Executes JavaScript in the browser. Use for advanced interactions not covered by other tools (e.g., drag and drop, scrolling, reading computed styles, DOM manipulation).
 
-**Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | script | string | Yes | JavaScript code to execute |
-| args | array | No | Arguments to pass to the script (accessible via `arguments[0]`, `arguments[1]`, etc.) |
+| args | array | No | Arguments accessible via `arguments[0]`, etc. |
 
-**Example:**
-```json
-{
-  "tool": "execute_script",
-  "parameters": {
-    "script": "return document.title;"
-  }
-}
-```
+### window
+Manages browser windows and tabs.
 
-**Example with arguments:**
-```json
-{
-  "tool": "execute_script",
-  "parameters": {
-    "script": "return arguments[0] + arguments[1];",
-    "args": [10, 32]
-  }
-}
-```
-
-### get_window_handles
-Returns a list of all window/tab handles in the current session.
-
-**Parameters:**
-None required
-
-**Example:**
-```json
-{
-  "tool": "get_window_handles",
-  "parameters": {}
-}
-```
-
-### switch_to_window
-Switches focus to a specific window or tab by its handle.
-
-**Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| handle | string | Yes | The window handle to switch to |
+| action | string | Yes | `list`, `switch`, `switch_latest`, or `close` |
+| handle | string | No | Window handle (required for `switch`) |
 
-**Example:**
-```json
-{
-  "tool": "switch_to_window",
-  "parameters": {
-    "handle": "CDwindow-1234"
-  }
-}
-```
+### frame
+Switches focus to a frame or back to the main page.
 
-### switch_to_latest_window
-Switches focus to the most recently opened window or tab.
-
-**Parameters:**
-None required
-
-**Example:**
-```json
-{
-  "tool": "switch_to_latest_window",
-  "parameters": {}
-}
-```
-
-### close_current_window
-Closes the current window/tab and switches back to the previous one.
-
-**Parameters:**
-None required
-
-**Example:**
-```json
-{
-  "tool": "close_current_window",
-  "parameters": {}
-}
-```
-
-### switch_to_frame
-Switches focus to an iframe or frame within the page. Provide either `by`/`value` to locate the frame by element, or `index` to switch by position.
-
-**Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| by | string | No | Locator strategy (id, css, xpath, name, tag, class) |
-| value | string | No | Value for the locator strategy |
-| index | number | No | Frame index (0-based) |
-| timeout | number | No | Max wait time in ms (default: 10000) |
+| action | string | Yes | `switch` or `default` |
+| by | string | No | Locator strategy (for `switch`) |
+| value | string | No | Locator value (for `switch`) |
+| index | number | No | Frame index, 0-based (for `switch`) |
+| timeout | number | No | Max wait in ms (default: 10000) |
 
-**Example (by locator):**
-```json
-{
-  "tool": "switch_to_frame",
-  "parameters": {
-    "by": "id",
-    "value": "my-iframe"
-  }
-}
-```
+### alert
+Handles browser alert, confirm, or prompt dialogs.
 
-**Example (by index):**
-```json
-{
-  "tool": "switch_to_frame",
-  "parameters": {
-    "index": 0
-  }
-}
-```
-
-### switch_to_default_content
-Switches focus back to the main page from an iframe.
-
-**Parameters:**
-None required
-
-**Example:**
-```json
-{
-  "tool": "switch_to_default_content",
-  "parameters": {}
-}
-```
-
-### accept_alert
-Accepts (clicks OK on) a browser alert, confirm, or prompt dialog.
-
-**Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| timeout | number | No | Max wait time in ms (default: 5000) |
-
-**Example:**
-```json
-{
-  "tool": "accept_alert",
-  "parameters": {}
-}
-```
-
-### dismiss_alert
-Dismisses (clicks Cancel on) a browser alert or confirm dialog.
-
-**Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| timeout | number | No | Max wait time in ms (default: 5000) |
-
-**Example:**
-```json
-{
-  "tool": "dismiss_alert",
-  "parameters": {}
-}
-```
-
-### get_alert_text
-Gets the text content of a browser alert, confirm, or prompt dialog.
-
-**Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| timeout | number | No | Max wait time in ms (default: 5000) |
-
-**Example:**
-```json
-{
-  "tool": "get_alert_text",
-  "parameters": {}
-}
-```
-
-### send_alert_text
-Types text into a browser prompt dialog and accepts it.
-
-**Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| text | string | Yes | Text to type into the prompt |
-| timeout | number | No | Max wait time in ms (default: 5000) |
-
-**Example:**
-```json
-{
-  "tool": "send_alert_text",
-  "parameters": {
-    "text": "my input"
-  }
-}
-```
-
+| action | string | Yes | `accept`, `dismiss`, `get_text`, or `send_text` |
+| text | string | No | Text to send (required for `send_text`) |
+| timeout | number | No | Max wait in ms (default: 5000) |
 
 ### add_cookie
-Adds a cookie to the current browser session.
-
-**Parameters:**
+Adds a cookie. Browser must be on a page from the cookie's domain.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | name | string | Yes | Cookie name |
 | value | string | Yes | Cookie value |
 | domain | string | No | Cookie domain |
-| path | string | No | Cookie path (default: /) |
-| secure | boolean | No | Whether the cookie is secure |
-| httpOnly | boolean | No | Whether the cookie is HTTP-only |
-| expiry | number | No | Cookie expiry as Unix timestamp |
-
-**Example:**
-```json
-{
-  "tool": "add_cookie",
-  "parameters": {
-    "name": "session_id",
-    "value": "abc123",
-    "path": "/",
-    "httpOnly": true
-  }
-}
-```
+| path | string | No | Cookie path |
+| secure | boolean | No | Secure flag |
+| httpOnly | boolean | No | HTTP-only flag |
+| expiry | number | No | Unix timestamp |
 
 ### get_cookies
-Retrieves cookies from the current browser session. Returns all cookies or a specific cookie by name.
-
-**Parameters:**
+Gets cookies. Returns all or a specific one by name.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| name | string | No | Cookie name to retrieve. If omitted, returns all cookies. |
-
-**Example — get all cookies:**
-```json
-{
-  "tool": "get_cookies",
-  "parameters": {}
-}
-```
-
-**Example — get a specific cookie:**
-```json
-{
-  "tool": "get_cookies",
-  "parameters": {
-    "name": "session_id"
-  }
-}
-```
+| name | string | No | Cookie name. Omit for all cookies. |
 
 ### delete_cookie
-Deletes cookies from the current browser session. Deletes a specific cookie by name, or all cookies if no name is provided.
-
-**Parameters:**
+Deletes cookies. Deletes all or a specific one by name.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| name | string | No | Cookie name to delete. If omitted, deletes all cookies. |
+| name | string | No | Cookie name. Omit to delete all. |
 
-**Example — delete a specific cookie:**
-```json
-{
-  "tool": "delete_cookie",
-  "parameters": {
-    "name": "session_id"
-  }
-}
-```
+### diagnostics
+Gets browser diagnostics captured via WebDriver BiDi (auto-enabled when supported).
 
-**Example — delete all cookies:**
-```json
-{
-  "tool": "delete_cookie",
-  "parameters": {}
-}
-```
-
-### get_console_logs
-Retrieves captured browser console messages (log, warn, error, etc.). Console logs are automatically captured in the background via WebDriver BiDi when the browser supports it — no configuration needed.
-
-**Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| clear | boolean | No | Clear the captured logs after retrieving them (default: false) |
+| type | string | Yes | `console`, `errors`, or `network` |
+| clear | boolean | No | Clear buffer after returning (default: false) |
 
-**Example:**
-```json
-{
-  "tool": "get_console_logs",
-  "parameters": {}
-}
+</details>
+
+---
+
+<details>
+<summary><strong>Development</strong></summary>
+
+### Setup
+
+```bash
+git clone https://github.com/angiejones/mcp-selenium.git
+cd mcp-selenium
+npm install
 ```
 
-### get_page_errors
-Retrieves captured JavaScript errors and uncaught exceptions with full stack traces. Errors are automatically captured in the background via WebDriver BiDi.
+### Run Tests
 
-**Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| clear | boolean | No | Clear the captured errors after retrieving them (default: false) |
-
-**Example:**
-```json
-{
-  "tool": "get_page_errors",
-  "parameters": {}
-}
+```bash
+npm test
 ```
 
-### get_network_logs
-Retrieves captured network activity including successful responses and failed requests. Network logs are automatically captured in the background via WebDriver BiDi.
+Requires Chrome + chromedriver on PATH. Tests run headless.
 
-**Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| clear | boolean | No | Clear the captured logs after retrieving them (default: false) |
+### Install via Smithery
 
-**Example:**
-```json
-{
-  "tool": "get_network_logs",
-  "parameters": {}
-}
+```bash
+npx -y @smithery/cli install @angiejones/mcp-selenium --client claude
 ```
+
+### Install globally
+
+```bash
+npm install -g @angiejones/mcp-selenium
+mcp-selenium
+```
+
+</details>
 
 ## License
 

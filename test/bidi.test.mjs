@@ -43,14 +43,14 @@ describe('BiDi Diagnostic Tools', () => {
         });
 
         it('should capture console messages at different levels', async () => {
-            await client.callTool('get_console_logs', { clear: true });
+            await client.callTool('diagnostics', { type: 'console', clear: true });
 
-            await client.callTool('click_element', { by: 'id', value: 'log-info' });
-            await client.callTool('click_element', { by: 'id', value: 'log-warn' });
-            await client.callTool('click_element', { by: 'id', value: 'log-error' });
+            await client.callTool('interact', { action: 'click', by: 'id', value: 'log-info' });
+            await client.callTool('interact', { action: 'click', by: 'id', value: 'log-warn' });
+            await client.callTool('interact', { action: 'click', by: 'id', value: 'log-error' });
             await new Promise(r => setTimeout(r, 500));
 
-            const result = await client.callTool('get_console_logs', {});
+            const result = await client.callTool('diagnostics', { type: 'console' });
             assert.ok(!result.isError, `Tool returned error: ${getResponseText(result)}`);
             const logs = JSON.parse(getResponseText(result));
 
@@ -67,10 +67,10 @@ describe('BiDi Diagnostic Tools', () => {
             await client.callTool('execute_script', { script: 'console.log("clear-test");' });
             await new Promise(r => setTimeout(r, 500));
 
-            const clearResult = await client.callTool('get_console_logs', { clear: true });
+            const clearResult = await client.callTool('diagnostics', { type: 'console', clear: true });
             assert.ok(getResponseText(clearResult).includes('clear-test'), 'Should return logs before clearing');
 
-            const afterResult = await client.callTool('get_console_logs', {});
+            const afterResult = await client.callTool('diagnostics', { type: 'console' });
             assert.strictEqual(getResponseText(afterResult), 'No console logs captured');
         });
     });
@@ -89,12 +89,12 @@ describe('BiDi Diagnostic Tools', () => {
         });
 
         it('should capture JavaScript errors with stack traces', async () => {
-            await client.callTool('get_page_errors', { clear: true });
+            await client.callTool('diagnostics', { type: 'errors', clear: true });
             await client.callTool('execute_script', {
                 script: 'setTimeout(() => { throw new Error("Intentional test error"); }, 0);'
             });
             await new Promise(r => setTimeout(r, 1000));
-            const result = await client.callTool('get_page_errors', {});
+            const result = await client.callTool('diagnostics', { type: 'errors' });
             assert.ok(!result.isError, `Tool returned error: ${getResponseText(result)}`);
             const text = getResponseText(result);
             const errors = JSON.parse(text);
@@ -118,14 +118,14 @@ describe('BiDi Diagnostic Tools', () => {
         });
 
         it('should capture successful and failed network requests', async () => {
-            await client.callTool('get_network_logs', { clear: true });
+            await client.callTool('diagnostics', { type: 'network', clear: true });
             await client.callTool('navigate', { url: fixture('bidi.html') });
             await client.callTool('execute_script', {
                 script: 'fetch("http://localhost:1/nonexistent").catch(() => {});'
             });
             await new Promise(r => setTimeout(r, 1000));
 
-            const result = await client.callTool('get_network_logs', {});
+            const result = await client.callTool('diagnostics', { type: 'network' });
             assert.ok(!result.isError, `Tool returned error: ${getResponseText(result)}`);
             const logs = JSON.parse(getResponseText(result));
 
@@ -152,7 +152,7 @@ describe('BiDi Diagnostic Tools', () => {
             await client.callTool('execute_script', { script: 'console.log("session-1-log");' });
             await new Promise(r => setTimeout(r, 500));
 
-            const firstLogs = await client.callTool('get_console_logs', {});
+            const firstLogs = await client.callTool('diagnostics', { type: 'console' });
             assert.ok(getResponseText(firstLogs).includes('session-1-log'));
 
             await client.callTool('close_session', {});
@@ -161,7 +161,7 @@ describe('BiDi Diagnostic Tools', () => {
                 options: { headless: true, arguments: ['--no-sandbox'] }
             });
 
-            const newLogs = await client.callTool('get_console_logs', {});
+            const newLogs = await client.callTool('diagnostics', { type: 'console' });
             assert.strictEqual(getResponseText(newLogs), 'No console logs captured');
 
             await client.callTool('close_session', {});
