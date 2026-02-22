@@ -51,6 +51,7 @@ describe('BiDi Diagnostic Tools', () => {
             await new Promise(r => setTimeout(r, 500));
 
             const result = await client.callTool('get_console_logs', {});
+            assert.ok(!result.isError, `Tool returned error: ${getResponseText(result)}`);
             const logs = JSON.parse(getResponseText(result));
 
             assert.ok(logs.find(l => l.text?.includes('Hello from console')), 'Should capture console.log');
@@ -94,6 +95,7 @@ describe('BiDi Diagnostic Tools', () => {
             });
             await new Promise(r => setTimeout(r, 1000));
             const result = await client.callTool('get_page_errors', {});
+            assert.ok(!result.isError, `Tool returned error: ${getResponseText(result)}`);
             const text = getResponseText(result);
             const errors = JSON.parse(text);
             const jsError = errors.find(e => e.text?.includes('Intentional test error'));
@@ -124,6 +126,7 @@ describe('BiDi Diagnostic Tools', () => {
             await new Promise(r => setTimeout(r, 1000));
 
             const result = await client.callTool('get_network_logs', {});
+            assert.ok(!result.isError, `Tool returned error: ${getResponseText(result)}`);
             const logs = JSON.parse(getResponseText(result));
 
             const pageLoad = logs.find(l => l.url?.includes('bidi.html'));
