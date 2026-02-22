@@ -67,7 +67,6 @@ const newBidiState = () => ({
 
 async function setupBidi(driver, sessionId) {
     const bidi = newBidiState();
-    state.bidi.set(sessionId, bidi);
 
     const logInspector = await LogInspector(driver);
     await logInspector.onConsoleEntry((entry) => {
@@ -106,6 +105,7 @@ async function setupBidi(driver, sessionId) {
     });
 
     bidi.available = true;
+    state.bidi.set(sessionId, bidi);
 }
 
 function registerBidiTool(name, description, logKey, emptyMessage, unavailableMessage) {
@@ -787,6 +787,7 @@ server.tool(
                 console.error(`Error quitting driver for session ${sessionId}:`, quitError);
             }
             state.drivers.delete(sessionId);
+            state.bidi.delete(sessionId);
             state.currentSession = null;
             return {
                 content: [{ type: 'text', text: 'Last window closed. Session ended.' }]

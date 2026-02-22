@@ -37,12 +37,14 @@ mcp-selenium/
     ├── browser.test.mjs   ← start_browser, close_session, take_screenshot, multi-session
     ├── navigation.test.mjs ← navigate, all 6 locator strategies
     ├── interactions.test.mjs ← click, send_keys, get_element_text, hover, double_click, right_click, press_key, drag_and_drop, upload_file
+    ├── bidi.test.mjs      ← BiDi enablement, console/error/network capture, session isolation
     └── fixtures/           ← HTML files loaded via file:// URLs
         ├── locators.html
         ├── interactions.html
         ├── mouse-actions.html
         ├── drag-drop.html
-        └── upload.html
+        ├── upload.html
+        └── bidi.html
 ```
 
 ### Key Files in Detail

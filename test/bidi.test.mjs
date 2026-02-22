@@ -1,5 +1,5 @@
 import { describe, it, after, before } from 'node:test';
-import assert from 'node:assert';
+import assert from 'node:assert/strict';
 import { McpClient, getResponseText, fixture } from './mcp-client.mjs';
 
 describe('BiDi Diagnostic Tools', () => {
@@ -136,6 +136,10 @@ describe('BiDi Diagnostic Tools', () => {
     });
 
     describe('Session Isolation', () => {
+        after(async () => {
+            try { await client.callTool('close_session', {}); } catch (_) {}
+        });
+
         it('should reset BiDi logs when starting a new session', async () => {
             await client.callTool('start_browser', {
                 browser: 'chrome',
