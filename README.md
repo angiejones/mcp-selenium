@@ -843,19 +843,6 @@ Retrieves captured network activity including successful responses and failed re
 }
 ```
 
----
-
-## Diagnostics (WebDriver BiDi)
-
-The server automatically enables [WebDriver BiDi](https://w3c.github.io/webdriver-bidi/) when starting a browser session. BiDi provides real-time, passive capture of browser diagnostics — console messages, JavaScript errors, and network activity are collected in the background without any extra configuration.
-
-This is especially useful for AI agents: when something goes wrong on a page, the agent can check `get_console_logs` and `get_page_errors` to understand *why*, rather than relying solely on screenshots.
-
-- **Automatic**: BiDi is enabled by default when the browser supports it
-- **Graceful fallback**: If the browser or driver doesn't support BiDi, the session starts normally and the diagnostic tools return a helpful message
-- **No performance impact**: Logs are passively captured via event listeners — no polling or extra requests
-- **Per-session**: Each browser session has its own log buffers, cleaned up automatically on session close
-
 ## License
 
 MIT
