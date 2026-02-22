@@ -54,7 +54,7 @@ describe('tools', () => {
 
     it('executes script and returns a string result', async () => {
       const result = await client.callTool('execute_script', { script: 'return document.title;' });
-      assert.ok(getResponseText(result).length > 0);
+      assert.equal(getResponseText(result), 'Interaction Test Page');
     });
 
     it('executes script and returns a numeric result', async () => {
