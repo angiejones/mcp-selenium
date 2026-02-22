@@ -1,6 +1,6 @@
 /**
- * Element interaction tests — click, send_keys, get_element_text,
- * hover, double_click, right_click, press_key, drag_and_drop, upload_file.
+ * Element interaction tests — interact (click, doubleclick, rightclick, hover),
+ * send_keys, get_element_text, press_key, upload_file.
  *
  * Every interaction is verified by checking the resulting DOM state.
  */
@@ -31,27 +31,27 @@ describe('Element Interactions', () => {
     await client.stop();
   });
 
-  describe('click_element', () => {
+  describe('interact — click', () => {
     before(async () => {
       await client.callTool('navigate', { url: fixture('interactions.html') });
     });
 
     it('should click a button and verify the effect', async () => {
-      await client.callTool('click_element', { by: 'id', value: 'btn' });
+      await client.callTool('interact', { action: 'click', by: 'id', value: 'btn' });
       const result = await client.callTool('get_element_text', { by: 'id', value: 'output' });
       const text = getResponseText(result);
       assert.equal(text, 'clicked');
     });
 
     it('should not trigger click on a disabled button', async () => {
-      await client.callTool('click_element', { by: 'id', value: 'disabled-btn' });
+      await client.callTool('interact', { action: 'click', by: 'id', value: 'disabled-btn' });
       const result = await client.callTool('get_element_text', { by: 'id', value: 'disabled-output' });
       const text = getResponseText(result);
       assert.equal(text, '', 'Disabled button click should not produce output');
     });
 
     it('should error when element not found', async () => {
-      const result = await client.callTool('click_element', { by: 'id', value: 'nonexistent' });
+      const result = await client.callTool('interact', { action: 'click', by: 'id', value: 'nonexistent' });
       assert.strictEqual(result.isError, true, 'Expected isError: true on error response');
       const text = getResponseText(result);
       assert.ok(text.includes('Error'), `Expected error, got: ${text}`);
@@ -131,39 +131,39 @@ describe('Element Interactions', () => {
     });
   });
 
-  describe('hover', () => {
+  describe('interact — hover', () => {
     before(async () => {
       await client.callTool('navigate', { url: fixture('mouse-actions.html') });
     });
 
     it('should hover and verify text changed', async () => {
-      await client.callTool('hover', { by: 'id', value: 'hover-target' });
+      await client.callTool('interact', { action: 'hover', by: 'id', value: 'hover-target' });
       const result = await client.callTool('get_element_text', { by: 'id', value: 'hover-target' });
       const text = getResponseText(result);
       assert.equal(text, 'hovered');
     });
   });
 
-  describe('double_click', () => {
+  describe('interact — doubleclick', () => {
     before(async () => {
       await client.callTool('navigate', { url: fixture('mouse-actions.html') });
     });
 
     it('should double-click and verify text changed', async () => {
-      await client.callTool('double_click', { by: 'id', value: 'dblclick-target' });
+      await client.callTool('interact', { action: 'doubleclick', by: 'id', value: 'dblclick-target' });
       const result = await client.callTool('get_element_text', { by: 'id', value: 'dblclick-target' });
       const text = getResponseText(result);
       assert.equal(text, 'double-clicked');
     });
   });
 
-  describe('right_click', () => {
+  describe('interact — rightclick', () => {
     before(async () => {
       await client.callTool('navigate', { url: fixture('mouse-actions.html') });
     });
 
     it('should right-click and verify text changed', async () => {
-      await client.callTool('right_click', { by: 'id', value: 'rclick-target' });
+      await client.callTool('interact', { action: 'rightclick', by: 'id', value: 'rclick-target' });
       const result = await client.callTool('get_element_text', { by: 'id', value: 'rclick-target' });
       const text = getResponseText(result);
       assert.equal(text, 'right-clicked');
@@ -173,7 +173,7 @@ describe('Element Interactions', () => {
   describe('press_key', () => {
     before(async () => {
       await client.callTool('navigate', { url: fixture('interactions.html') });
-      await client.callTool('click_element', { by: 'id', value: 'textbox' });
+      await client.callTool('interact', { action: 'click', by: 'id', value: 'textbox' });
     });
 
     it('should press a single character key', async () => {
@@ -217,23 +217,6 @@ describe('Element Interactions', () => {
       assert.strictEqual(result.isError, true, 'Expected isError: true on error response');
       const text = getResponseText(result);
       assert.ok(text.includes('Unknown key name'), `Expected unknown key error, got: ${text}`);
-    });
-  });
-
-  describe('drag_and_drop', () => {
-    before(async () => {
-      await client.callTool('navigate', { url: fixture('drag-drop.html') });
-    });
-
-    it('should drag and drop between elements', async () => {
-      const result = await client.callTool('drag_and_drop', {
-        by: 'id',
-        value: 'draggable',
-        targetBy: 'id',
-        targetValue: 'droppable',
-      });
-      const text = getResponseText(result);
-      assert.ok(!text.includes('Error'), `Expected success, got: ${text}`);
     });
   });
 

@@ -32,43 +32,29 @@ describe('MCP Server', () => {
     const expected = [
       'start_browser',
       'navigate',
-      'find_element',
-      'click_element',
+      'interact',
       'send_keys',
       'get_element_text',
-      'hover',
-      'drag_and_drop',
-      'double_click',
-      'right_click',
       'press_key',
       'upload_file',
       'take_screenshot',
       'close_session',
-      'clear_element',
       'get_element_attribute',
-      'scroll_to_element',
       'execute_script',
-      'switch_to_window',
-      'get_window_handles',
-      'switch_to_latest_window',
-      'close_current_window',
-      'switch_to_frame',
-      'switch_to_default_content',
-      'accept_alert',
-      'dismiss_alert',
-      'get_alert_text',
-      'send_alert_text',
+      'window',
+      'frame',
+      'alert',
       'add_cookie',
       'get_cookies',
       'delete_cookie',
-      'get_console_logs',
-      'get_page_errors',
-      'get_network_logs',
+      'diagnostics',
     ];
 
     for (const name of expected) {
       assert.ok(names.includes(name), `Missing tool: ${name}`);
     }
+
+    assert.equal(names.length, expected.length, `Expected ${expected.length} tools, got ${names.length}: ${names.join(', ')}`);
   });
 
   it('should include descriptions for all tools', async () => {
