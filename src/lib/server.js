@@ -33,7 +33,7 @@ const server = new McpServer({
 const state = {
     drivers: new Map(),
     currentSession: null,
-    bidi: new Map()  // sessionId → { available, consoleLogs, pageErrors, networkLogs }
+    bidi: new Map()
 };
 
 // Helper functions
