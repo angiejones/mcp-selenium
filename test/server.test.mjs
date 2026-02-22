@@ -61,6 +61,9 @@ describe('MCP Server', () => {
       'add_cookie',
       'get_cookies',
       'delete_cookie',
+      'get_console_logs',
+      'get_page_errors',
+      'get_network_logs',
     ];
 
     for (const name of expected) {

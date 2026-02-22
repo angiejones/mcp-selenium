@@ -23,6 +23,10 @@ A Model Context Protocol (MCP) server implementation for Selenium WebDriver, ena
 - Upload files
 - Support for headless mode
 - Manage browser cookies (add, get, delete)
+- **Real-time diagnostics** via WebDriver BiDi:
+  - Console log capture (info, warn, error)
+  - JavaScript error detection with stack traces
+  - Network request monitoring (successes and failures)
 
 ## Supported Browsers
 
@@ -787,6 +791,54 @@ Deletes cookies from the current browser session. Deletes a specific cookie by n
 ```json
 {
   "tool": "delete_cookie",
+  "parameters": {}
+}
+```
+
+### get_console_logs
+Retrieves captured browser console messages (log, warn, error, etc.). Console logs are automatically captured in the background via WebDriver BiDi when the browser supports it — no configuration needed.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| clear | boolean | No | Clear the captured logs after retrieving them (default: false) |
+
+**Example:**
+```json
+{
+  "tool": "get_console_logs",
+  "parameters": {}
+}
+```
+
+### get_page_errors
+Retrieves captured JavaScript errors and uncaught exceptions with full stack traces. Errors are automatically captured in the background via WebDriver BiDi.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| clear | boolean | No | Clear the captured errors after retrieving them (default: false) |
+
+**Example:**
+```json
+{
+  "tool": "get_page_errors",
+  "parameters": {}
+}
+```
+
+### get_network_logs
+Retrieves captured network activity including successful responses and failed requests. Network logs are automatically captured in the background via WebDriver BiDi.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| clear | boolean | No | Clear the captured logs after retrieving them (default: false) |
+
+**Example:**
+```json
+{
+  "tool": "get_network_logs",
   "parameters": {}
 }
 ```

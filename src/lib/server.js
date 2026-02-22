@@ -10,6 +10,18 @@ import { Options as FirefoxOptions } from 'selenium-webdriver/firefox.js';
 import { Options as EdgeOptions } from 'selenium-webdriver/edge.js';
 import { Options as SafariOptions } from 'selenium-webdriver/safari.js';
 
+// BiDi imports — loaded dynamically to avoid hard failures if not available
+let LogInspector, Network;
+try {
+    LogInspector = (await import('selenium-webdriver/bidi/logInspector.js')).default;
+    const networkModule = await import('selenium-webdriver/bidi/network.js');
+    Network = networkModule.Network;
+} catch (_) {
+    // BiDi modules not available in this selenium-webdriver version
+    LogInspector = null;
+    Network = null;
+}
+
 
 // Create an MCP server
 const server = new McpServer({
@@ -20,7 +32,8 @@ const server = new McpServer({
 // Server state
 const state = {
     drivers: new Map(),
-    currentSession: null
+    currentSession: null,
+    bidi: new Map()
 };
 
 // Helper functions
@@ -43,6 +56,80 @@ const getLocator = (by, value) => {
         default: throw new Error(`Unsupported locator strategy: ${by}`);
     }
 };
+
+// BiDi helpers
+const newBidiState = () => ({
+    available: false,
+    consoleLogs: [],
+    pageErrors: [],
+    networkLogs: []
+});
+
+async function setupBidi(driver, sessionId) {
+    const bidi = newBidiState();
+
+    const logInspector = await LogInspector(driver);
+    await logInspector.onConsoleEntry((entry) => {
+        try {
+            bidi.consoleLogs.push({
+                level: entry.level, text: entry.text, timestamp: entry.timestamp,
+                type: entry.type, method: entry.method, args: entry.args
+            });
+        } catch (_) { /* ignore malformed entry */ }
+    });
+    await logInspector.onJavascriptLog((entry) => {
+        try {
+            bidi.pageErrors.push({
+                level: entry.level, text: entry.text, timestamp: entry.timestamp,
+                type: entry.type, stackTrace: entry.stackTrace
+            });
+        } catch (_) { /* ignore malformed entry */ }
+    });
+
+    const network = await Network(driver);
+    await network.responseCompleted((event) => {
+        try {
+            bidi.networkLogs.push({
+                type: 'response', url: event.request?.url, status: event.response?.status,
+                method: event.request?.method, mimeType: event.response?.mimeType, timestamp: Date.now()
+            });
+        } catch (_) { /* ignore malformed event */ }
+    });
+    await network.fetchError((event) => {
+        try {
+            bidi.networkLogs.push({
+                type: 'error', url: event.request?.url, method: event.request?.method,
+                errorText: event.errorText, timestamp: Date.now()
+            });
+        } catch (_) { /* ignore malformed event */ }
+    });
+
+    bidi.available = true;
+    state.bidi.set(sessionId, bidi);
+}
+
+function registerBidiTool(name, description, logKey, emptyMessage, unavailableMessage) {
+    server.tool(
+        name,
+        description,
+        { clear: z.boolean().optional().describe("Clear after returning (default: false)") },
+        async ({ clear = false }) => {
+            try {
+                getDriver();
+                const bidi = state.bidi.get(state.currentSession);
+                if (!bidi?.available) {
+                    return { content: [{ type: 'text', text: unavailableMessage }] };
+                }
+                const logs = bidi[logKey];
+                const result = logs.length === 0 ? emptyMessage : JSON.stringify(logs, null, 2);
+                if (clear) bidi[logKey] = [];
+                return { content: [{ type: 'text', text: result }] };
+            } catch (e) {
+                return { content: [{ type: 'text', text: `Error: ${e.message}` }], isError: true };
+            }
+        }
+    );
+}
 
 // Common schemas
 const browserOptionsSchema = z.object({
@@ -69,6 +156,14 @@ server.tool(
             let builder = new Builder();
             let driver;
             let warnings = [];
+
+            // Enable BiDi websocket if the modules are available
+            if (LogInspector && Network) {
+                // 'ignore' prevents BiDi from auto-dismissing alert/confirm/prompt dialogs,
+                // allowing accept_alert, dismiss_alert, and get_alert_text to work as expected.
+                builder = builder.withCapabilities({ 'webSocketUrl': true, 'unhandledPromptBehavior': 'ignore' });
+            }
+
             switch (browser) {
                 case 'chrome': {
                     const chromeOptions = new ChromeOptions();
@@ -134,7 +229,19 @@ server.tool(
             state.drivers.set(sessionId, driver);
             state.currentSession = sessionId;
 
+            // Attempt to enable BiDi for real-time log capture
+            if (LogInspector && Network) {
+                try {
+                    await setupBidi(driver, sessionId);
+                } catch (_) {
+                    // BiDi not supported by this browser/driver — continue without it
+                }
+            }
+
             let message = `Browser started with session_id: ${sessionId}`;
+            if (state.bidi.get(sessionId)?.available) {
+                message += ' (BiDi enabled: console logs, JS errors, and network activity are being captured)';
+            }
             if (warnings.length > 0) {
                 message += `\nWarnings: ${warnings.join(' ')}`;
             }
@@ -473,10 +580,14 @@ server.tool(
     async () => {
         try {
             const driver = getDriver();
-            await driver.quit();
-            state.drivers.delete(state.currentSession);
             const sessionId = state.currentSession;
-            state.currentSession = null;
+            try {
+                await driver.quit();
+            } finally {
+                state.drivers.delete(sessionId);
+                state.bidi.delete(sessionId);
+                state.currentSession = null;
+            }
             return {
                 content: [{ type: 'text', text: `Browser session ${sessionId} closed` }]
             };
@@ -681,6 +792,7 @@ server.tool(
                 console.error(`Error quitting driver for session ${sessionId}:`, quitError);
             }
             state.drivers.delete(sessionId);
+            state.bidi.delete(sessionId);
             state.currentSession = null;
             return {
                 content: [{ type: 'text', text: 'Last window closed. Session ended.' }]
@@ -957,6 +1069,31 @@ server.tool(
     }
 );
 
+// BiDi Diagnostic Tools
+registerBidiTool(
+    'get_console_logs',
+    'returns browser console messages (log, warn, info, debug) captured via WebDriver BiDi. Useful for debugging page behavior, seeing application output, and catching warnings.',
+    'consoleLogs',
+    'No console logs captured',
+    'Console log capture is not available (BiDi not supported by this browser/driver)'
+);
+
+registerBidiTool(
+    'get_page_errors',
+    'returns JavaScript errors and exceptions captured via WebDriver BiDi. Includes stack traces when available. Essential for diagnosing why a page is broken or a feature isn\'t working.',
+    'pageErrors',
+    'No page errors captured',
+    'Page error capture is not available (BiDi not supported by this browser/driver)'
+);
+
+registerBidiTool(
+    'get_network_logs',
+    'returns network activity (completed responses and failed requests) captured via WebDriver BiDi. Shows HTTP status codes, URLs, methods, and error details. Useful for diagnosing failed API calls and broken resources.',
+    'networkLogs',
+    'No network activity captured',
+    'Network log capture is not available (BiDi not supported by this browser/driver)'
+);
+
 // Resources
 server.resource(
     "browser-status",
@@ -986,6 +1123,7 @@ async function cleanup() {
         }
     }
     state.drivers.clear();
+    state.bidi.clear();
     state.currentSession = null;
     process.exit(0);
 }

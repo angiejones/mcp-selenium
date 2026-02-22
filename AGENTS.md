@@ -37,12 +37,14 @@ mcp-selenium/
     ├── browser.test.mjs   ← start_browser, close_session, take_screenshot, multi-session
     ├── navigation.test.mjs ← navigate, all 6 locator strategies
     ├── interactions.test.mjs ← click, send_keys, get_element_text, hover, double_click, right_click, press_key, drag_and_drop, upload_file
+    ├── bidi.test.mjs      ← BiDi enablement, console/error/network capture, session isolation
     └── fixtures/           ← HTML files loaded via file:// URLs
         ├── locators.html
         ├── interactions.html
         ├── mouse-actions.html
         ├── drag-drop.html
-        └── upload.html
+        ├── upload.html
+        └── bidi.html
 ```
 
 ### Key Files in Detail
@@ -82,13 +84,15 @@ All browser state is held in a module-level `state` object:
 ```js
 const state = {
     drivers: new Map(),    // sessionId → WebDriver instance
-    currentSession: null   // string | null — the active session ID
+    currentSession: null,  // string | null — the active session ID
+    bidi: new Map()        // sessionId → { available, consoleLogs, pageErrors, networkLogs }
 };
 ```
 
 - **Session IDs** are formatted as `{browser}_{Date.now()}` (e.g., `chrome_1708531200000`)
 - Only one session is "current" at a time (set by `start_browser`, cleared by `close_session`)
 - Multiple sessions can exist in the `drivers` Map, but tools always operate on `currentSession`
+- **BiDi state** is a single Map of per-session objects — cleanup is one `state.bidi.delete(sessionId)` call
 
 ### Helper Functions
 
@@ -96,6 +100,21 @@ const state = {
 |----------|---------|
 | `getDriver()` | Returns the WebDriver for `state.currentSession`. Throws if no active session. |
 | `getLocator(by, value)` | Converts a locator strategy string (`"id"`, `"css"`, `"xpath"`, `"name"`, `"tag"`, `"class"`) to a Selenium `By` object. |
+| `newBidiState()` | Returns a fresh `{ available, consoleLogs, pageErrors, networkLogs }` object for a new session. |
+| `setupBidi(driver, sessionId)` | Wires up BiDi event listeners (console, JS errors, network) for a session. Called from `start_browser`. |
+| `registerBidiTool(name, description, logKey, emptyMessage, unavailableMessage)` | Factory that registers a diagnostic tool. All three BiDi tools (`get_console_logs`, `get_page_errors`, `get_network_logs`) use this — don't copy-paste a new handler, call this instead. |
+
+### Diagnostics (WebDriver BiDi)
+
+The server automatically enables [WebDriver BiDi](https://w3c.github.io/webdriver-bidi/) when starting a browser session. BiDi provides real-time, passive capture of browser diagnostics — console messages, JavaScript errors, and network activity are collected in the background without any extra configuration.
+
+This is especially useful for AI agents: when something goes wrong on a page, the agent can check `get_console_logs` and `get_page_errors` to understand *why*, rather than relying solely on screenshots.
+
+- **Automatic**: BiDi is enabled by default when the browser supports it
+- **Graceful fallback**: If the browser or driver doesn't support BiDi, the session starts normally and the diagnostic tools return a helpful message
+- **No performance impact**: Logs are passively captured via event listeners — no polling or extra requests
+- **Per-session**: Each browser session has its own log buffers, cleaned up automatically on session close
+- **BiDi modules are dynamically imported** at the top of `server.js` — if the selenium-webdriver version doesn't include them, `LogInspector` and `Network` are set to `null` and all BiDi code is skipped
 
 ### Cleanup
 
@@ -232,6 +251,7 @@ Tests talk to the real MCP server over stdio using JSON-RPC 2.0. No mocking.
 | `browser.test.mjs` | start_browser, close_session, take_screenshot, multi-session |
 | `navigation.test.mjs` | navigate, all 6 locator strategies (id, css, xpath, name, tag, class) |
 | `interactions.test.mjs` | click, send_keys, get_element_text, hover, double_click, right_click, press_key, drag_and_drop, upload_file |
+| `bidi.test.mjs` | BiDi enablement, console log capture, page error capture, network log capture, session isolation |
 
 ### When Adding a New Tool
 
