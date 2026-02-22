@@ -43,7 +43,7 @@ function walk(el) {
     if (role) node.role = role;
     if (name) node.name = name;
     if (el.id) node.id = el.id;
-    if (tag.match(/^H[1-6]$/)) node.level = parseInt(tag[1]);
+    if (/^H[1-6]$/.test(tag)) node.level = parseInt(tag[1], 10);
     if (el.href) node.href = el.href;
     if (el.disabled) node.disabled = true;
     if (el.checked) node.checked = true;
