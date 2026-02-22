@@ -581,10 +581,13 @@ server.tool(
         try {
             const driver = getDriver();
             const sessionId = state.currentSession;
-            await driver.quit();
-            state.drivers.delete(sessionId);
-            state.bidi.delete(sessionId);
-            state.currentSession = null;
+            try {
+                await driver.quit();
+            } finally {
+                state.drivers.delete(sessionId);
+                state.bidi.delete(sessionId);
+                state.currentSession = null;
+            }
             return {
                 content: [{ type: 'text', text: `Browser session ${sessionId} closed` }]
             };
