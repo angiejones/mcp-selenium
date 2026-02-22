@@ -1,6 +1,6 @@
 {
   "name": "@angiejones/mcp-selenium",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Selenium WebDriver MCP Server",
   "type": "module",
   "main": "src/lib/server.js",
@@ -14,7 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.7.0",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "selenium-webdriver": "^4.18.1"
   }
 }

@@ -135,14 +135,11 @@ describe('Navigation & Element Locators', () => {
     });
 
     it('should reject unsupported locator strategy via schema validation', async () => {
-      await assert.rejects(
-        () => client.callTool('get_element_text', { by: 'invalid', value: 'test' }),
-        (err) => {
-          assert.ok(err.message.includes('invalid_enum_value') || err.message.includes('Invalid'),
-            `Expected validation error, got: ${err.message}`);
-          return true;
-        }
-      );
+      const result = await client.callTool('get_element_text', { by: 'invalid', value: 'test' });
+      assert.strictEqual(result.isError, true, 'Expected isError: true for invalid enum value');
+      const text = getResponseText(result);
+      assert.ok(text.includes('invalid') || text.includes('Invalid'),
+        `Expected validation error, got: ${text}`);
     });
 
     it('should error when element not found', async () => {

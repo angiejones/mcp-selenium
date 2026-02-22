@@ -224,6 +224,29 @@ Gets browser diagnostics captured via WebDriver BiDi (auto-enabled when supporte
 
 </details>
 
+<details>
+<summary><strong>Resources</strong></summary>
+
+MCP resources provide read-only data that clients can access without calling a tool.
+
+### browser-status://current
+Returns the current browser session status (active session ID or "no active session").
+
+| Property | Value |
+|----------|-------|
+| MIME type | `text/plain` |
+| Requires browser | No |
+
+### accessibility://current
+Returns an accessibility tree snapshot of the current page — a compact, structured JSON representation of interactive elements and text content. Much smaller than full HTML. Useful for understanding page layout and finding elements to interact with.
+
+| Property | Value |
+|----------|-------|
+| MIME type | `application/json` |
+| Requires browser | Yes |
+
+</details>
+
 ---
 
 <details>

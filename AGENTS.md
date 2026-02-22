@@ -5,16 +5,17 @@ MCP server for Selenium WebDriver browser automation. JavaScript (ES Modules), N
 ## File Map
 
 ```text
-src/lib/server.js      ← ALL server logic: tool definitions, state, helpers, cleanup
-src/index.js           ← Thin CLI wrapper, spawns server.js as child process
-test/mcp-client.mjs    ← Reusable MCP test client (JSON-RPC over stdio)
-test/*.test.mjs        ← Tests grouped by feature
-test/fixtures/*.html   ← HTML files loaded via file:// URLs in tests
+src/lib/server.js                ← ALL server logic: tool definitions, state, helpers, cleanup
+src/lib/accessibility-snapshot.js ← Browser-side JS injected via executeScript to build accessibility tree
+bin/mcp-selenium.js              ← CLI entry point, spawns server.js as child process
+test/mcp-client.mjs              ← Reusable MCP test client (JSON-RPC over stdio)
+test/*.test.mjs                  ← Tests grouped by feature
+test/fixtures/*.html             ← HTML files loaded via file:// URLs in tests
 ```
 
 ## Architecture
 
-**Single-file server** — everything is in `server.js`. 18 tools, 1 resource.
+Server logic lives in `server.js`, with browser-injected scripts in separate files. 18 tools, 2 resources.
 
 State is a module-level object:
 ```js
@@ -80,3 +81,4 @@ Tests talk to the real MCP server over stdio. No mocking. Each test file uses **
 | `tools.test.mjs` | get_element_attribute, execute_script, window, frame, alert |
 | `cookies.test.mjs` | add_cookie, get_cookies, delete_cookie |
 | `bidi.test.mjs` | diagnostics (console/errors/network), session isolation |
+| `resources.test.mjs` | accessibility-snapshot resource (tree structure, filtering, no-session error) |

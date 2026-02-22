@@ -104,6 +104,28 @@ export class McpClient {
   }
 
   /**
+   * List all available resources.
+   */
+  async listResources() {
+    const resp = await this.#sendRequest('resources/list', {});
+    if (resp.error) {
+      throw new Error(`RPC error listing resources: ${JSON.stringify(resp.error)}`);
+    }
+    return resp.result.resources;
+  }
+
+  /**
+   * Read a resource by URI.
+   */
+  async readResource(uri) {
+    const resp = await this.#sendRequest('resources/read', { uri });
+    if (resp.error) {
+      throw new Error(`RPC error reading resource: ${JSON.stringify(resp.error)}`);
+    }
+    return resp.result;
+  }
+
+  /**
    * Stop the server process and clean up.
    */
   async stop() {
