@@ -25,7 +25,7 @@ describe('MCP Server', () => {
     assert.ok(tools.length > 0, 'Server should have tools registered');
   });
 
-  it('should register all 34 expected tools', async () => {
+  it('should register all expected tools', async () => {
     const tools = await client.listTools();
     const names = tools.map((t) => t.name);
 
