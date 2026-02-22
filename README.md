@@ -22,6 +22,7 @@ A Model Context Protocol (MCP) server implementation for Selenium WebDriver, ena
 - Take screenshots
 - Upload files
 - Support for headless mode
+- Manage browser cookies (add, get, delete)
 
 ## Supported Browsers
 
@@ -704,6 +705,89 @@ Types text into a browser prompt dialog and accepts it.
   "parameters": {
     "text": "my input"
   }
+}
+```
+
+
+### add_cookie
+Adds a cookie to the current browser session.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| name | string | Yes | Cookie name |
+| value | string | Yes | Cookie value |
+| domain | string | No | Cookie domain |
+| path | string | No | Cookie path (default: /) |
+| secure | boolean | No | Whether the cookie is secure |
+| httpOnly | boolean | No | Whether the cookie is HTTP-only |
+| expiry | number | No | Cookie expiry as Unix timestamp |
+
+**Example:**
+```json
+{
+  "tool": "add_cookie",
+  "parameters": {
+    "name": "session_id",
+    "value": "abc123",
+    "path": "/",
+    "httpOnly": true
+  }
+}
+```
+
+### get_cookies
+Retrieves cookies from the current browser session. Returns all cookies or a specific cookie by name.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| name | string | No | Cookie name to retrieve. If omitted, returns all cookies. |
+
+**Example — get all cookies:**
+```json
+{
+  "tool": "get_cookies",
+  "parameters": {}
+}
+```
+
+**Example — get a specific cookie:**
+```json
+{
+  "tool": "get_cookies",
+  "parameters": {
+    "name": "session_id"
+  }
+}
+```
+
+### delete_cookie
+Deletes cookies from the current browser session. Deletes a specific cookie by name, or all cookies if no name is provided.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| name | string | No | Cookie name to delete. If omitted, deletes all cookies. |
+
+**Example — delete a specific cookie:**
+```json
+{
+  "tool": "delete_cookie",
+  "parameters": {
+    "name": "session_id"
+  }
+}
+```
+
+**Example — delete all cookies:**
+```json
+{
+  "tool": "delete_cookie",
+  "parameters": {}
 }
 ```
 
