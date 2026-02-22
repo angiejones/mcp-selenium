@@ -159,7 +159,7 @@ server.tool(
 
             // Enable BiDi websocket if the modules are available
             if (LogInspector && Network) {
-                builder = builder.withCapabilities({ 'webSocketUrl': true });
+                builder = builder.withCapabilities({ 'webSocketUrl': true, 'unhandledPromptBehavior': 'ignore' });
             }
 
             switch (browser) {
