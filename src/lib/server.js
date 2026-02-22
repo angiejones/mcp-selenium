@@ -33,12 +33,7 @@ const server = new McpServer({
 const state = {
     drivers: new Map(),
     currentSession: null,
-    bidiAvailable: new Map(),   // sessionId → boolean
-    consoleLogs: new Map(),     // sessionId → Array
-    pageErrors: new Map(),      // sessionId → Array
-    networkLogs: new Map(),     // sessionId → Array
-    logInspectors: new Map(),   // sessionId → LogInspector (for cleanup)
-    networkInspectors: new Map() // sessionId → Network (for cleanup)
+    bidi: new Map()  // sessionId → { available, consoleLogs, pageErrors, networkLogs }
 };
 
 // Helper functions
@@ -61,6 +56,80 @@ const getLocator = (by, value) => {
         default: throw new Error(`Unsupported locator strategy: ${by}`);
     }
 };
+
+// BiDi helpers
+const newBidiState = () => ({
+    available: false,
+    consoleLogs: [],
+    pageErrors: [],
+    networkLogs: []
+});
+
+async function setupBidi(driver, sessionId) {
+    const bidi = newBidiState();
+    state.bidi.set(sessionId, bidi);
+
+    const logInspector = await LogInspector(driver);
+    await logInspector.onConsoleEntry((entry) => {
+        try {
+            bidi.consoleLogs.push({
+                level: entry.level, text: entry.text, timestamp: entry.timestamp,
+                type: entry.type, method: entry.method, args: entry.args
+            });
+        } catch (_) { /* ignore malformed entry */ }
+    });
+    await logInspector.onJavascriptLog((entry) => {
+        try {
+            bidi.pageErrors.push({
+                level: entry.level, text: entry.text, timestamp: entry.timestamp,
+                type: entry.type, stackTrace: entry.stackTrace
+            });
+        } catch (_) { /* ignore malformed entry */ }
+    });
+
+    const network = await Network(driver);
+    await network.responseCompleted((event) => {
+        try {
+            bidi.networkLogs.push({
+                type: 'response', url: event.request?.url, status: event.response?.status,
+                method: event.request?.method, mimeType: event.response?.mimeType, timestamp: Date.now()
+            });
+        } catch (_) { /* ignore malformed event */ }
+    });
+    await network.fetchError((event) => {
+        try {
+            bidi.networkLogs.push({
+                type: 'error', url: event.request?.url, method: event.request?.method,
+                errorText: event.errorText, timestamp: Date.now()
+            });
+        } catch (_) { /* ignore malformed event */ }
+    });
+
+    bidi.available = true;
+}
+
+function registerBidiTool(name, description, logKey, emptyMessage, unavailableMessage) {
+    server.tool(
+        name,
+        description,
+        { clear: z.boolean().optional().describe("Clear after returning (default: false)") },
+        async ({ clear = false }) => {
+            try {
+                getDriver();
+                const bidi = state.bidi.get(state.currentSession);
+                if (!bidi?.available) {
+                    return { content: [{ type: 'text', text: unavailableMessage }] };
+                }
+                const logs = bidi[logKey];
+                const result = logs.length === 0 ? emptyMessage : JSON.stringify(logs, null, 2);
+                if (clear) bidi[logKey] = [];
+                return { content: [{ type: 'text', text: result }] };
+            } catch (e) {
+                return { content: [{ type: 'text', text: `Error: ${e.message}` }], isError: true };
+            }
+        }
+    );
+}
 
 // Common schemas
 const browserOptionsSchema = z.object({
@@ -159,86 +228,16 @@ server.tool(
             state.currentSession = sessionId;
 
             // Attempt to enable BiDi for real-time log capture
-            let bidiEnabled = false;
             if (LogInspector && Network) {
                 try {
-                    state.consoleLogs.set(sessionId, []);
-                    state.pageErrors.set(sessionId, []);
-                    state.networkLogs.set(sessionId, []);
-
-                    const logInspector = await LogInspector(driver);
-                    await logInspector.onConsoleEntry((entry) => {
-                        try {
-                            const logs = state.consoleLogs.get(sessionId);
-                            if (logs) {
-                                logs.push({
-                                    level: entry.level,
-                                    text: entry.text,
-                                    timestamp: entry.timestamp,
-                                    type: entry.type,
-                                    method: entry.method,
-                                    args: entry.args
-                                });
-                            }
-                        } catch (_) { /* ignore malformed entry */ }
-                    });
-                    await logInspector.onJavascriptLog((entry) => {
-                        try {
-                            const errors = state.pageErrors.get(sessionId);
-                            if (errors) {
-                                errors.push({
-                                    level: entry.level,
-                                    text: entry.text,
-                                    timestamp: entry.timestamp,
-                                    type: entry.type,
-                                    stackTrace: entry.stackTrace
-                                });
-                            }
-                        } catch (_) { /* ignore malformed entry */ }
-                    });
-                    state.logInspectors.set(sessionId, logInspector);
-
-                    const network = await Network(driver);
-                    await network.responseCompleted((event) => {
-                        try {
-                            const logs = state.networkLogs.get(sessionId);
-                            if (logs) {
-                                logs.push({
-                                    type: 'response',
-                                    url: event.request?.url,
-                                    status: event.response?.status,
-                                    method: event.request?.method,
-                                    mimeType: event.response?.mimeType,
-                                    timestamp: Date.now()
-                                });
-                            }
-                        } catch (_) { /* ignore malformed event */ }
-                    });
-                    await network.fetchError((event) => {
-                        try {
-                            const logs = state.networkLogs.get(sessionId);
-                            if (logs) {
-                                logs.push({
-                                    type: 'error',
-                                    url: event.request?.url,
-                                    method: event.request?.method,
-                                    errorText: event.errorText,
-                                    timestamp: Date.now()
-                                });
-                            }
-                        } catch (_) { /* ignore malformed event */ }
-                    });
-                    state.networkInspectors.set(sessionId, network);
-
-                    bidiEnabled = true;
+                    await setupBidi(driver, sessionId);
                 } catch (_) {
                     // BiDi not supported by this browser/driver — continue without it
                 }
             }
-            state.bidiAvailable.set(sessionId, bidiEnabled);
 
             let message = `Browser started with session_id: ${sessionId}`;
-            if (bidiEnabled) {
+            if (state.bidi.get(sessionId)?.available) {
                 message += ' (BiDi enabled: console logs, JS errors, and network activity are being captured)';
             }
             if (warnings.length > 0) {
@@ -582,13 +581,7 @@ server.tool(
             const sessionId = state.currentSession;
             await driver.quit();
             state.drivers.delete(sessionId);
-            // Clean up BiDi state
-            state.bidiAvailable.delete(sessionId);
-            state.consoleLogs.delete(sessionId);
-            state.pageErrors.delete(sessionId);
-            state.networkLogs.delete(sessionId);
-            state.logInspectors.delete(sessionId);
-            state.networkInspectors.delete(sessionId);
+            state.bidi.delete(sessionId);
             state.currentSession = null;
             return {
                 content: [{ type: 'text', text: `Browser session ${sessionId} closed` }]
@@ -1071,106 +1064,28 @@ server.tool(
 );
 
 // BiDi Diagnostic Tools
-server.tool(
-    "get_console_logs",
-    "returns browser console messages (log, warn, info, debug) captured via WebDriver BiDi. Useful for debugging page behavior, seeing application output, and catching warnings.",
-    {
-        clear: z.boolean().optional().describe("Clear the logs after returning them (default: false)")
-    },
-    async ({ clear = false }) => {
-        try {
-            getDriver(); // ensure active session
-            const sessionId = state.currentSession;
-            if (!state.bidiAvailable.get(sessionId)) {
-                return {
-                    content: [{ type: 'text', text: 'Console log capture is not available (BiDi not supported by this browser/driver)' }]
-                };
-            }
-            const logs = state.consoleLogs.get(sessionId) || [];
-            const result = logs.length === 0
-                ? 'No console logs captured'
-                : JSON.stringify(logs, null, 2);
-            if (clear) {
-                state.consoleLogs.set(sessionId, []);
-            }
-            return {
-                content: [{ type: 'text', text: result }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error getting console logs: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
+registerBidiTool(
+    'get_console_logs',
+    'returns browser console messages (log, warn, info, debug) captured via WebDriver BiDi. Useful for debugging page behavior, seeing application output, and catching warnings.',
+    'consoleLogs',
+    'No console logs captured',
+    'Console log capture is not available (BiDi not supported by this browser/driver)'
 );
 
-server.tool(
-    "get_page_errors",
-    "returns JavaScript errors and exceptions captured via WebDriver BiDi. Includes stack traces when available. Essential for diagnosing why a page is broken or a feature isn't working.",
-    {
-        clear: z.boolean().optional().describe("Clear the errors after returning them (default: false)")
-    },
-    async ({ clear = false }) => {
-        try {
-            getDriver(); // ensure active session
-            const sessionId = state.currentSession;
-            if (!state.bidiAvailable.get(sessionId)) {
-                return {
-                    content: [{ type: 'text', text: 'Page error capture is not available (BiDi not supported by this browser/driver)' }]
-                };
-            }
-            const errors = state.pageErrors.get(sessionId) || [];
-            const result = errors.length === 0
-                ? 'No page errors captured'
-                : JSON.stringify(errors, null, 2);
-            if (clear) {
-                state.pageErrors.set(sessionId, []);
-            }
-            return {
-                content: [{ type: 'text', text: result }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error getting page errors: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
+registerBidiTool(
+    'get_page_errors',
+    'returns JavaScript errors and exceptions captured via WebDriver BiDi. Includes stack traces when available. Essential for diagnosing why a page is broken or a feature isn\'t working.',
+    'pageErrors',
+    'No page errors captured',
+    'Page error capture is not available (BiDi not supported by this browser/driver)'
 );
 
-server.tool(
-    "get_network_logs",
-    "returns network activity (completed responses and failed requests) captured via WebDriver BiDi. Shows HTTP status codes, URLs, methods, and error details. Useful for diagnosing failed API calls and broken resources.",
-    {
-        clear: z.boolean().optional().describe("Clear the logs after returning them (default: false)")
-    },
-    async ({ clear = false }) => {
-        try {
-            getDriver(); // ensure active session
-            const sessionId = state.currentSession;
-            if (!state.bidiAvailable.get(sessionId)) {
-                return {
-                    content: [{ type: 'text', text: 'Network log capture is not available (BiDi not supported by this browser/driver)' }]
-                };
-            }
-            const logs = state.networkLogs.get(sessionId) || [];
-            const result = logs.length === 0
-                ? 'No network activity captured'
-                : JSON.stringify(logs, null, 2);
-            if (clear) {
-                state.networkLogs.set(sessionId, []);
-            }
-            return {
-                content: [{ type: 'text', text: result }]
-            };
-        } catch (e) {
-            return {
-                content: [{ type: 'text', text: `Error getting network logs: ${e.message}` }],
-                isError: true
-            };
-        }
-    }
+registerBidiTool(
+    'get_network_logs',
+    'returns network activity (completed responses and failed requests) captured via WebDriver BiDi. Shows HTTP status codes, URLs, methods, and error details. Useful for diagnosing failed API calls and broken resources.',
+    'networkLogs',
+    'No network activity captured',
+    'Network log capture is not available (BiDi not supported by this browser/driver)'
 );
 
 // Resources
@@ -1202,12 +1117,7 @@ async function cleanup() {
         }
     }
     state.drivers.clear();
-    state.bidiAvailable.clear();
-    state.consoleLogs.clear();
-    state.pageErrors.clear();
-    state.networkLogs.clear();
-    state.logInspectors.clear();
-    state.networkInspectors.clear();
+    state.bidi.clear();
     state.currentSession = null;
     process.exit(0);
 }
