@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
+import { readFileSync } from 'fs';
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import pkg from 'selenium-webdriver';
 const { Builder, By, Key, until, Actions, error } = pkg;
@@ -111,6 +113,11 @@ async function setupBidi(driver, sessionId) {
     state.bidi.set(sessionId, bidi);
 }
 
+// Browser-side script loaded from file and executed via WebDriver's executeScript.
+const accessibilitySnapshotScript = readFileSync(
+    new URL('./accessibility-snapshot.js', import.meta.url), 'utf-8'
+);
+
 // Common schemas
 const browserOptionsSchema = z.object({
     headless: z.boolean().optional().describe("Run browser in headless mode"),
@@ -124,12 +131,14 @@ const locatorSchema = {
 };
 
 // Browser Management Tools
-server.tool(
+server.registerTool(
     "start_browser",
-    "launches browser",
     {
-        browser: z.enum(["chrome", "firefox", "edge", "safari"]).describe("Browser to launch (chrome, firefox, edge, or safari)"),
-        options: browserOptionsSchema
+        description: "launches browser",
+        inputSchema: {
+            browser: z.enum(["chrome", "firefox", "edge", "safari"]).describe("Browser to launch (chrome, firefox, edge, or safari)"),
+            options: browserOptionsSchema
+        }
     },
     async ({ browser, options = {} }) => {
         try {
@@ -238,11 +247,13 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "navigate",
-    "navigates to a URL",
     {
+        description: "navigates to a URL",
+        inputSchema: {
         url: z.string().describe("URL to navigate to")
+    }
     },
     async ({ url }) => {
         try {
@@ -261,12 +272,14 @@ server.tool(
 );
 
 // Element Interaction Tools
-server.tool(
+server.registerTool(
     "interact",
-    "performs a mouse action on an element",
     {
+        description: "performs a mouse action on an element",
+        inputSchema: {
         action: z.enum(["click", "doubleclick", "rightclick", "hover"]).describe("Mouse action to perform"),
         ...locatorSchema
+    }
     },
     async ({ action, by, value, timeout = 10000 }) => {
         try {
@@ -305,12 +318,14 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "send_keys",
-    "sends keys to an element, aka typing. Clears the field first.",
     {
+        description: "sends keys to an element, aka typing. Clears the field first.",
+        inputSchema: {
         ...locatorSchema,
         text: z.string().describe("Text to enter into the element")
+    }
     },
     async ({ by, value, text, timeout = 10000 }) => {
         try {
@@ -331,11 +346,13 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "get_element_text",
-    "gets the text content of an element",
     {
+        description: "gets the text content of an element",
+        inputSchema: {
         ...locatorSchema
+    }
     },
     async ({ by, value, timeout = 10000 }) => {
         try {
@@ -355,11 +372,13 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "press_key",
-    "simulates pressing a keyboard key",
     {
+        description: "simulates pressing a keyboard key",
+        inputSchema: {
         key: z.string().describe("Key to press (e.g., 'Enter', 'Tab', 'a', etc.)")
+    }
     },
     async ({ key }) => {
         try {
@@ -387,12 +406,14 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "upload_file",
-    "uploads a file using a file input element",
     {
+        description: "uploads a file using a file input element",
+        inputSchema: {
         ...locatorSchema,
         filePath: z.string().describe("Absolute path to the file to upload")
+    }
     },
     async ({ by, value, filePath, timeout = 10000 }) => {
         try {
@@ -412,11 +433,13 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "take_screenshot",
-    "captures a screenshot of the current page",
     {
+        description: "captures a screenshot of the current page",
+        inputSchema: {
         outputPath: z.string().optional().describe("Optional path where to save the screenshot. If not provided, returns an image/png content block.")
+    }
     },
     async ({ outputPath }) => {
         try {
@@ -444,10 +467,12 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "close_session",
-    "closes the current browser session",
-    {},
+    {
+        description: "closes the current browser session",
+        inputSchema: {}
+    },
     async () => {
         try {
             const driver = getDriver();
@@ -472,12 +497,14 @@ server.tool(
 );
 
 // Element Utility Tools
-server.tool(
+server.registerTool(
     "get_element_attribute",
-    "gets the value of an attribute on an element",
     {
+        description: "gets the value of an attribute on an element",
+        inputSchema: {
         ...locatorSchema,
         attribute: z.string().describe("Name of the attribute to get (e.g., 'href', 'value', 'class')")
+    }
     },
     async ({ by, value, attribute, timeout = 10000 }) => {
         try {
@@ -497,12 +524,14 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "execute_script",
-    "executes JavaScript in the browser and returns the result. Use for advanced interactions not covered by other tools (e.g., drag and drop, scrolling, reading computed styles, manipulating the DOM directly).",
     {
+        description: "executes JavaScript in the browser and returns the result. Use for advanced interactions not covered by other tools (e.g., drag and drop, scrolling, reading computed styles, manipulating the DOM directly).",
+        inputSchema: {
         script: z.string().describe("JavaScript code to execute in the browser"),
         args: z.array(z.any()).optional().describe("Optional arguments to pass to the script (accessible via arguments[0], arguments[1], etc.)")
+    }
     },
     async ({ script, args = [] }) => {
         try {
@@ -524,12 +553,14 @@ server.tool(
 );
 
 // Window/Tab Management
-server.tool(
+server.registerTool(
     "window",
-    "manages browser windows and tabs",
     {
+        description: "manages browser windows and tabs",
+        inputSchema: {
         action: z.enum(["list", "switch", "switch_latest", "close"]).describe("Window action to perform"),
         handle: z.string().optional().describe("Window handle (required for switch)")
+    }
     },
     async ({ action, handle }) => {
         try {
@@ -580,15 +611,17 @@ server.tool(
 );
 
 // Frame Management
-server.tool(
+server.registerTool(
     "frame",
-    "switches focus to a frame or back to the main page",
     {
+        description: "switches focus to a frame or back to the main page",
+        inputSchema: {
         action: z.enum(["switch", "default"]).describe("Frame action to perform"),
         by: z.enum(["id", "css", "xpath", "name", "tag", "class"]).optional().describe("Locator strategy for frame element"),
         value: z.string().optional().describe("Value for the locator strategy"),
         index: z.number().optional().describe("Frame index (0-based)"),
         timeout: z.number().optional().describe("Max wait in ms")
+    }
     },
     async ({ action, by, value, index, timeout = 10000 }) => {
         try {
@@ -618,13 +651,15 @@ server.tool(
 );
 
 // Alert/Dialog Handling
-server.tool(
+server.registerTool(
     "alert",
-    "handles a browser alert, confirm, or prompt dialog",
     {
+        description: "handles a browser alert, confirm, or prompt dialog",
+        inputSchema: {
         action: z.enum(["accept", "dismiss", "get_text", "send_text"]).describe("Action to perform on the alert"),
         text: z.string().optional().describe("Text to send (required for send_text)"),
         timeout: z.number().optional().describe("Max wait in ms")
+    }
     },
     async ({ action, text, timeout = 5000 }) => {
         try {
@@ -662,10 +697,11 @@ server.tool(
 
 
 // Cookie Management Tools
-server.tool(
+server.registerTool(
     "add_cookie",
-    "adds a cookie to the current browser session. The browser must be on a page from the cookie's domain before setting it.",
     {
+        description: "adds a cookie to the current browser session. The browser must be on a page from the cookie's domain before setting it.",
+        inputSchema: {
         name: z.string().describe("Name of the cookie"),
         value: z.string().describe("Value of the cookie"),
         domain: z.string().optional().describe("Domain the cookie is visible to"),
@@ -673,6 +709,7 @@ server.tool(
         secure: z.boolean().optional().describe("Whether the cookie is a secure cookie"),
         httpOnly: z.boolean().optional().describe("Whether the cookie is HTTP only"),
         expiry: z.number().optional().describe("Expiry date of the cookie as a Unix timestamp (seconds since epoch)")
+    }
     },
     async ({ name, value, domain, path, secure, httpOnly, expiry }) => {
         try {
@@ -696,11 +733,13 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "get_cookies",
-    "retrieves cookies from the current browser session. Returns all cookies or a specific cookie by name.",
     {
+        description: "retrieves cookies from the current browser session. Returns all cookies or a specific cookie by name.",
+        inputSchema: {
         name: z.string().optional().describe("Name of a specific cookie to retrieve. If omitted, all cookies are returned.")
+    }
     },
     async ({ name }) => {
         try {
@@ -741,11 +780,13 @@ server.tool(
     }
 );
 
-server.tool(
+server.registerTool(
     "delete_cookie",
-    "deletes cookies from the current browser session. Can delete a specific cookie by name or all cookies.",
     {
+        description: "deletes cookies from the current browser session. Can delete a specific cookie by name or all cookies.",
+        inputSchema: {
         name: z.string().optional().describe("Name of the cookie to delete. If omitted, all cookies are deleted.")
+    }
     },
     async ({ name }) => {
         try {
@@ -777,12 +818,14 @@ const diagnosticTypes = {
     network:  { logKey: 'networkLogs', emptyMessage: 'No network activity captured' }
 };
 
-server.tool(
+server.registerTool(
     "diagnostics",
-    "retrieves browser diagnostics (console logs, JS errors, or network activity) captured via WebDriver BiDi",
     {
+        description: "retrieves browser diagnostics (console logs, JS errors, or network activity) captured via WebDriver BiDi",
+        inputSchema: {
         type: z.enum(["console", "errors", "network"]).describe("Type of diagnostic data to retrieve"),
         clear: z.boolean().optional().describe("Clear after returning (default: false)")
+    }
     },
     async ({ type, clear = false }) => {
         try {
@@ -806,7 +849,7 @@ server.tool(
 );
 
 // Resources
-server.resource(
+server.registerResource(
     "browser-status",
     "browser-status://current",
     {
@@ -822,6 +865,26 @@ server.resource(
                 : "No active browser session"
         }]
     })
+);
+
+server.registerResource(
+    "accessibility-snapshot",
+    "accessibility://current",
+    {
+        description: "Accessibility tree snapshot of the current page. A compact, structured representation of interactive elements and text content, much smaller than full HTML. Useful for understanding page layout and finding elements to interact with.",
+        mimeType: "application/json"
+    },
+    async (uri) => {
+        try {
+            const driver = state.drivers.get(state.currentSession);
+            if (!driver) throw new McpError(-32002, "No active browser session. Start a browser first.");
+            const tree = await driver.executeScript(accessibilitySnapshotScript);
+            return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(tree, null, 2) }] };
+        } catch (e) {
+            if (e instanceof McpError) throw e;
+            throw new McpError(ErrorCode.InternalError, `Failed to capture accessibility snapshot: ${e.message}`);
+        }
+    }
 );
 
 // Cleanup handler

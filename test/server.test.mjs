@@ -1,5 +1,5 @@
 /**
- * MCP Server — connection and tool registration tests.
+ * MCP Server — connection, tool registration, and resource registration tests.
  * No browser needed for these.
  */
 
@@ -73,5 +73,21 @@ describe('MCP Server', () => {
       assert.ok(tool.inputSchema, `Tool "${tool.name}" should have an inputSchema`);
       assert.equal(tool.inputSchema.type, 'object', `Tool "${tool.name}" schema should be type object`);
     }
+  });
+
+  it('should register all expected resources', async () => {
+    const resources = await client.listResources();
+    const uris = resources.map((r) => r.uri);
+
+    const expected = [
+      'browser-status://current',
+      'accessibility://current',
+    ];
+
+    for (const uri of expected) {
+      assert.ok(uris.includes(uri), `Missing resource: ${uri}`);
+    }
+
+    assert.equal(uris.length, expected.length, `Expected ${expected.length} resources, got ${uris.length}: ${uris.join(', ')}`);
   });
 });
