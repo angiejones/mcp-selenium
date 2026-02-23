@@ -436,7 +436,7 @@ server.registerTool(
 server.registerTool(
     "take_screenshot",
     {
-        description: "captures a screenshot of the current page. Prefer using the accessibility://current resource for understanding page content. Use get_element_attribute or execute_script to verify element state. Only use screenshots when visual layout or styling needs to be verified.",
+        description: "captures a screenshot of the current page. Prefer using the accessibility://current resource for understanding page content. Use get_element_text, get_element_attribute, or execute_script to verify element state. Only use screenshots when visual layout or styling needs to be verified.",
         inputSchema: {
         outputPath: z.string().optional().describe("Optional path where to save the screenshot. If not provided, returns an image/png content block.")
     }
