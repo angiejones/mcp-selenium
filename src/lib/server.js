@@ -436,7 +436,7 @@ server.registerTool(
 server.registerTool(
     "take_screenshot",
     {
-        description: "captures a screenshot of the current page. Prefer using the accessibility://current resource for understanding page content. Use screenshots only when visual layout matters.",
+        description: "captures a screenshot of the current page. Prefer using the accessibility://current resource for understanding page content. Use get_element_text, get_element_attribute, or execute_script to verify element state. Only use screenshots when visual layout or styling needs to be verified.",
         inputSchema: {
         outputPath: z.string().optional().describe("Optional path where to save the screenshot. If not provided, returns an image/png content block.")
     }
@@ -500,7 +500,7 @@ server.registerTool(
 server.registerTool(
     "get_element_attribute",
     {
-        description: "gets the value of an attribute on an element",
+        description: "gets the value of an attribute on an element. Use this to verify element state. Prefer this over screenshots for validation.",
         inputSchema: {
         ...locatorSchema,
         attribute: z.string().describe("Name of the attribute to get (e.g., 'href', 'value', 'class')")
@@ -527,7 +527,7 @@ server.registerTool(
 server.registerTool(
     "execute_script",
     {
-        description: "executes JavaScript in the browser and returns the result. Use for advanced interactions not covered by other tools (e.g., drag and drop, scrolling, reading computed styles, manipulating the DOM directly).",
+        description: "executes JavaScript in the browser and returns the result. Use for advanced interactions not covered by other tools (e.g., drag and drop, scrolling, reading computed styles, manipulating the DOM directly). Also useful for batch-reading multiple element values/states in a single call instead of multiple get_element_attribute calls.",
         inputSchema: {
         script: z.string().describe("JavaScript code to execute in the browser"),
         args: z.array(z.any()).optional().describe("Optional arguments to pass to the script (accessible via arguments[0], arguments[1], etc.)")
