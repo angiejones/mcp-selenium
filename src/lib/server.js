@@ -17,11 +17,10 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
 
-const server = new McpServer({
-    name: "MCP Selenium",
-    version,
-    instructions: "To understand the current page state, read the accessibility://current resource. It provides a structured accessibility tree that's faster and more reliable for finding element locators."
-});
+const server = new McpServer(
+    { name: "MCP Selenium", version },
+    { instructions: "To understand the current page state, read the accessibility://current resource. It provides a structured accessibility tree that's faster and more reliable for finding element locators." }
+);
 
 // BiDi imports — loaded dynamically to avoid hard failures if not available
 let LogInspector, Network;
