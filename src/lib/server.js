@@ -17,10 +17,10 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
 
-const server = new McpServer({
-    name: "MCP Selenium",
-    version
-});
+const server = new McpServer(
+    { name: "MCP Selenium", version },
+    { instructions: "To understand the current page state, read the accessibility://current resource. It provides a structured accessibility tree that's faster and more reliable for finding element locators." }
+);
 
 // BiDi imports — loaded dynamically to avoid hard failures if not available
 let LogInspector, Network;
@@ -436,7 +436,7 @@ server.registerTool(
 server.registerTool(
     "take_screenshot",
     {
-        description: "captures a screenshot of the current page",
+        description: "captures a screenshot of the current page. Prefer using the accessibility://current resource for understanding page content. Use screenshots only when visual layout matters.",
         inputSchema: {
         outputPath: z.string().optional().describe("Optional path where to save the screenshot. If not provided, returns an image/png content block.")
     }
