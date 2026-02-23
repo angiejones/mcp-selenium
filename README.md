@@ -15,7 +15,7 @@ A Model Context Protocol (MCP) server for Selenium WebDriver — browser automat
 
 Paste into your browser address bar:
 ```
-goose://extension?cmd=npx&arg=-y&arg=%40angiejones%2Fmcp-selenium&id=selenium-mcp&name=Selenium%20MCP&description=automates%20browser%20interactions
+goose://extension?cmd=npx&arg=-y&arg=%40angiejones%2Fmcp-selenium%40latest&id=selenium-mcp&name=Selenium%20MCP&description=automates%20browser%20interactions
 ```
 </details>
 
@@ -23,7 +23,7 @@ goose://extension?cmd=npx&arg=-y&arg=%40angiejones%2Fmcp-selenium&id=selenium-mc
 <summary><strong>Goose (CLI)</strong></summary>
 
 ```bash
-goose session --with-extension "npx -y @angiejones/mcp-selenium"
+goose session --with-extension "npx -y @angiejones/mcp-selenium@latest"
 ```
 </details>
 
@@ -31,7 +31,7 @@ goose session --with-extension "npx -y @angiejones/mcp-selenium"
 <summary><strong>Claude Code</strong></summary>
 
 ```bash
-claude mcp add selenium -- npx -y @angiejones/mcp-selenium
+claude mcp add selenium -- npx -y @angiejones/mcp-selenium@latest
 ```
 </details>
 
@@ -43,7 +43,7 @@ claude mcp add selenium -- npx -y @angiejones/mcp-selenium
   "mcpServers": {
     "selenium": {
       "command": "npx",
-      "args": ["-y", "@angiejones/mcp-selenium"]
+      "args": ["-y", "@angiejones/mcp-selenium@latest"]
     }
   }
 }
